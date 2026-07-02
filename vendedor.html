@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeliMarket — Acceso</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/estilos.css">
+  <link rel="stylesheet" href="css/estilos-vendedor.css">
+</head>
+<body>
+
+<!-- ===================== PANTALLA: LOGIN ===================== -->
+<div class="screen active" id="screen-login">
+  <div class="login-screen">
+    <div class="login-logo">
+      <i class="ti ti-motorbike"></i> DeliMarket
+    </div>
+    <p class="login-tagline">Marketplace de productores locales</p>
+
+    <div class="login-card">
+      <div class="login-title">¡Bienvenido!</div>
+      <p class="login-subtitle">¿Cómo querés ingresar hoy?</p>
+
+      <!-- Selector de rol -->
+      <div class="role-options" id="role-options-section">
+
+        <button class="role-btn" data-role="consumer" onclick="selectRole(this)">
+          <div class="role-icon consumer"><i class="ti ti-shopping-bag"></i></div>
+          <div class="role-info">
+            <div class="role-name">Soy consumidor</div>
+            <div class="role-desc">Quiero comprar productos locales</div>
+          </div>
+          <i class="ti ti-circle-check role-check"></i>
+        </button>
+
+        <button class="role-btn" data-role="vendor" onclick="selectRole(this)">
+          <div class="role-icon vendor"><i class="ti ti-store"></i></div>
+          <div class="role-info">
+            <div class="role-name">Soy vendedor</div>
+            <div class="role-desc">Quiero publicar y vender mis productos</div>
+          </div>
+          <i class="ti ti-circle-check role-check"></i>
+        </button>
+
+        <button class="role-btn" data-role="admin" onclick="selectRole(this)">
+          <div class="role-icon admin"><i class="ti ti-shield-check"></i></div>
+          <div class="role-info">
+            <div class="role-name">Administrador</div>
+            <div class="role-desc">Acceso al panel de gestión</div>
+          </div>
+          <i class="ti ti-circle-check role-check"></i>
+        </button>
+
+      </div>
+
+      <!-- Botones de acción: Tengo cuenta / Registrarme -->
+      <div class="auth-action-btns" id="auth-action-btns" style="display:none; flex-direction:column; gap:10px; margin-top:4px;">
+        <button class="btn-continue" onclick="continueLogin('login')" style="background:#1D9E75;">
+          <i class="ti ti-login" style="font-size:18px"></i>
+          Tengo cuenta
+        </button>
+        <button class="btn-continue" onclick="continueLogin('register')" style="background:transparent; color:#1D9E75; border:1.5px solid #1D9E75;">
+          <i class="ti ti-user-plus" style="font-size:18px"></i>
+          Registrarme
+        </button>
+      </div>
+
+      <!-- Botón continuar original (solo para admin) -->
+      <button class="btn-continue" id="btn-continue" style="display:none" onclick="continueLogin('login')">
+        <i class="ti ti-arrow-right" style="font-size:18px"></i>
+        Continuar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PANTALLA: INGRESAR (LOGIN con credenciales) ===================== -->
+<div class="screen" id="screen-auth-login">
+  <div class="register-screen">
+    <div class="navbar">
+      <button class="back-btn" onclick="showScreen('login')">
+        <i class="ti ti-arrow-left" style="font-size:18px"></i>
+        Volver
+      </button>
+      <span style="font-size:14px;font-weight:500;color:var(--color-text-primary)">Ingresar</span>
+      <div style="width:60px"></div>
+    </div>
+    <div class="register-body">
+      <div class="register-header">
+        <h2>Iniciá sesión</h2>
+        <p>Ingresá con tu correo o número de celular</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-identifier">Correo o celular <span>*</span></label>
+        <input class="form-input" id="login-identifier" type="text" placeholder="ejemplo@correo.com o 388 4123456">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Contraseña <span>*</span></label>
+        <div style="position:relative">
+          <input class="form-input" id="login-password" type="password" placeholder="Tu contraseña" style="padding-right:44px">
+          <button onclick="togglePass('login-password')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);padding:0">
+            <i class="ti ti-eye" id="login-password-eye" style="font-size:18px"></i>
+          </button>
+        </div>
+      </div>
+      <div id="login-error" style="display:none;background:#FAECE7;color:#D85A30;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:8px">
+        <i class="ti ti-alert-circle" style="font-size:14px"></i> <span id="login-error-msg"></span>
+      </div>
+    </div>
+    <div class="register-footer">
+      <button class="btn-continue" onclick="doLogin()">
+        <i class="ti ti-login" style="font-size:18px"></i>
+        Ingresar
+      </button>
+      <p style="text-align:center;font-size:13px;color:var(--color-text-secondary);margin-top:14px">
+        ¿No tenés cuenta? 
+        <a href="#" onclick="continueLogin('register');return false;" style="color:#1D9E75;font-weight:500">Registrate acá</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PANTALLA: REGISTRO CONSUMIDOR ===================== -->
+<div class="screen" id="screen-register-consumer">
+  <div class="register-screen">
+
+    <div class="navbar">
+      <button class="back-btn" onclick="showScreen('login')">
+        <i class="ti ti-arrow-left" style="font-size:18px"></i>
+        Volver
+      </button>
+      <span style="font-size:14px;font-weight:500;color:var(--color-text-primary)">Crear cuenta</span>
+      <div style="width:60px"></div>
+    </div>
+
+    <div class="register-body">
+      <div class="register-header">
+        <h2>Creá tu cuenta</h2>
+        <p>Solo necesitamos algunos datos para empezar</p>
+      </div>
+
+      <!-- Foto de perfil -->
+      <div class="avatar-upload">
+        <div class="avatar-circle" onclick="document.getElementById('consumer-avatar-input').click()">
+          <i class="ti ti-user" id="consumer-avatar-icon"></i>
+        </div>
+        <span class="avatar-label">Foto de perfil (opcional)</span>
+        <input type="file" id="consumer-avatar-input" accept="image/*" style="display:none" onchange="previewConsumerAvatar(this)">
+      </div>
+
+      <!-- Nombre y apellido -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="c-firstname">Nombre <span>*</span></label>
+          <input class="form-input" id="c-firstname" type="text" placeholder="Tu nombre">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="c-lastname">Apellido <span>*</span></label>
+          <input class="form-input" id="c-lastname" type="text" placeholder="Tu apellido">
+        </div>
+      </div>
+
+      <!-- DNI -->
+      <div class="form-group">
+        <label class="form-label" for="c-dni">DNI <span>*</span></label>
+        <input class="form-input" id="c-dni" type="number" placeholder="12345678" maxlength="8">
+        <div class="form-hint">Solo para verificar tu identidad</div>
+      </div>
+
+      <!-- Número de celular -->
+      <div class="form-group">
+        <label class="form-label" for="c-phone">Número de celular <span>*</span></label>
+        <input class="form-input" id="c-phone" type="tel" placeholder="388 4123456">
+        <div class="form-hint">Te avisamos por WhatsApp cuando tu pedido está en camino</div>
+      </div>
+
+      <!-- Correo o celular (identificador de login) -->
+      <div class="form-group">
+        <label class="form-label" for="c-identifier">Correo electrónico <span>*</span></label>
+        <input class="form-input" id="c-identifier" type="text" placeholder="ejemplo@correo.com">
+        <div class="form-hint">Lo usarás para iniciar sesión</div>
+      </div>
+
+      <!-- Ubicación -->
+      <div class="form-group">
+        <label class="form-label" for="c-location">Localidad <span>*</span></label>
+        <input class="form-input" id="c-location" type="text" placeholder="Ej: San Salvador de Jujuy">
+      </div>
+
+      <!-- Dirección de entrega -->
+      <div class="form-group">
+        <label class="form-label" for="c-address">Dirección de entrega <span>*</span></label>
+        <input class="form-input" id="c-address" type="text" placeholder="Calle, número, piso, depto...">
+        <div class="form-hint">Podés cambiarla al hacer cada pedido</div>
+      </div>
+
+      <!-- Contraseña -->
+      <div class="form-group">
+        <label class="form-label" for="c-password">Contraseña <span>*</span></label>
+        <div style="position:relative">
+          <input class="form-input" id="c-password" type="password" placeholder="Máx. 8 caracteres" maxlength="8" style="padding-right:44px" oninput="checkPassStrength('c-password','c-pass-strength','c-bar-1','c-bar-2','c-bar-3','c-pass-msg')">
+          <button onclick="togglePass('c-password')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);padding:0">
+            <i class="ti ti-eye" id="c-password-eye" style="font-size:18px"></i>
+          </button>
+        </div>
+        <div class="form-hint">Máx. 8 caracteres · al menos 1 mayúscula, 1 número y 1 símbolo</div>
+        <div id="c-pass-strength" style="margin-top:6px;display:none">
+          <div style="display:flex;gap:4px;margin-bottom:4px">
+            <div id="c-bar-1" style="height:4px;flex:1;border-radius:2px;background:#E0E0E0"></div>
+            <div id="c-bar-2" style="height:4px;flex:1;border-radius:2px;background:#E0E0E0"></div>
+            <div id="c-bar-3" style="height:4px;flex:1;border-radius:2px;background:#E0E0E0"></div>
+          </div>
+          <div id="c-pass-msg" style="font-size:11px;color:var(--color-text-tertiary)"></div>
+        </div>
+      </div>
+      <div id="c-register-error" style="display:none;background:#FAECE7;color:#D85A30;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:8px">
+        <i class="ti ti-alert-circle" style="font-size:14px"></i> <span id="c-register-error-msg"></span>
+      </div>
+
+    </div>
+
+    <div class="register-footer">
+      <p class="register-terms">
+        Al registrarte aceptás los <a href="#">Términos y condiciones</a>
+        y la <a href="#">Política de privacidad</a> de DeliMarket.
+      </p>
+      <button class="btn-continue" onclick="registerConsumer()">
+        <i class="ti ti-check" style="font-size:18px"></i>
+        Crear mi cuenta
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== PANTALLA: REGISTRO VENDEDOR ===================== -->
+<div class="screen" id="screen-register">
+  <div class="register-screen">
+
+    <div class="navbar">
+      <button class="back-btn" onclick="showScreen('login')">
+        <i class="ti ti-arrow-left" style="font-size:18px"></i>
+        Volver
+      </button>
+      <span style="font-size:14px;font-weight:500;color:var(--color-text-primary)">Crear cuenta</span>
+      <div style="width:60px"></div>
+    </div>
+
+    <div class="register-body">
+      <div class="register-header">
+        <h2>Contanos sobre tu negocio</h2>
+        <p>Completá tu perfil para empezar a vender en DeliMarket</p>
+      </div>
+
+      <!-- Avatar -->
+      <div class="avatar-upload">
+        <div class="avatar-circle" onclick="document.getElementById('avatar-input').click()">
+          <i class="ti ti-camera" id="avatar-icon"></i>
+        </div>
+        <span class="avatar-label">Foto o logo de tu negocio</span>
+        <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="previewAvatar(this)">
+      </div>
+
+      <!-- Nombre del negocio -->
+      <div class="form-group">
+        <label class="form-label" for="biz-name">Nombre del negocio <span>*</span></label>
+        <input class="form-input" id="biz-name" type="text" placeholder="Ej: Finca El Sol, Tambo Serrano...">
+      </div>
+
+      <!-- DNI y Celular en fila -->
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="biz-dni">DNI <span>*</span></label>
+          <input class="form-input" id="biz-dni" type="number" placeholder="12345678" maxlength="8">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="biz-phone">Celular <span>*</span></label>
+          <input class="form-input" id="biz-phone" type="tel" placeholder="388 4123456">
+        </div>
+      </div>
+
+      <!-- Categoría principal -->
+      <div class="form-group">
+        <label class="form-label" for="biz-category">Categoría principal <span>*</span></label>
+        <select class="form-input" id="biz-category">
+          <option value="" disabled selected>Seleccioná una categoría</option>
+          <option value="frutas">Frutas y verduras</option>
+          <option value="lacteos">Lácteos</option>
+          <option value="panaderia">Panadería y repostería</option>
+          <option value="carnes">Carnes y aves</option>
+          <option value="bebidas">Bebidas</option>
+          <option value="otros">Otros productos</option>
+        </select>
+      </div>
+
+      <!-- Localidad -->
+      <div class="form-group">
+        <label class="form-label" for="biz-location">Localidad <span>*</span></label>
+        <input class="form-input" id="biz-location" type="text" placeholder="Ej: San Salvador de Jujuy">
+      </div>
+
+      <!-- Biografía estilo Twitter -->
+      <div class="form-group">
+        <label class="form-label" for="biz-bio">Descripción breve</label>
+        <textarea class="form-input form-textarea" id="biz-bio" maxlength="160"
+          placeholder="Contá quiénes son, qué producen y qué los hace especiales... (máx. 160 caracteres)"
+          oninput="updateBioCount(this)"></textarea>
+        <div class="form-hint" id="bio-count">0 / 160</div>
+      </div>
+
+      <!-- Dirección de retiro -->
+      <div class="form-group">
+        <label class="form-label" for="biz-address">Dirección (para retiro o referencia)</label>
+        <input class="form-input" id="biz-address" type="text" placeholder="Calle, número, barrio">
+      </div>
+
+      <!-- Correo o celular (para login) -->
+      <div class="form-group">
+        <label class="form-label" for="biz-identifier">Correo o celular <span>*</span></label>
+        <input class="form-input" id="biz-identifier" type="text" placeholder="ejemplo@correo.com o 388 4123456">
+        <div class="form-hint">Lo usarás para iniciar sesión</div>
+      </div>
+
+      <!-- Contraseña -->
+      <div class="form-group">
+        <label class="form-label" for="biz-password">Contraseña <span>*</span></label>
+        <div style="position:relative">
+          <input class="form-input" id="biz-password" type="password" placeholder="Máx. 8 caracteres" maxlength="8" style="padding-right:44px" oninput="checkPassStrength('biz-password','biz-pass-strength','biz-bar-1','biz-bar-2','biz-bar-3','biz-pass-msg')">
+          <button onclick="togglePass('biz-password')" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--color-text-tertiary);padding:0">
+            <i class="ti ti-eye" id="biz-password-eye" style="font-size:18px"></i>
+          </button>
+        </div>
+        <div class="form-hint">Máx. 8 caracteres · al menos 1 mayúscula, 1 número y 1 símbolo</div>
+        <div id="biz-pass-strength" style="margin-top:6px;display:none">
+          <div style="display:flex;gap:4px;margin-bottom:4px">
+            <div id="biz-bar-1" style="height:4px;flex:1;border-radius:2px;background:#E0E0E0"></div>
+            <div id="biz-bar-2" style="height:4px;flex:1;border-radius:2px;background:#E0E0E0"></div>
+            <div id="biz-bar-3" style="height:4px;flex:1;border-radius:2px;background:#E0E0E0"></div>
+          </div>
+          <div id="biz-pass-msg" style="font-size:11px;color:var(--color-text-tertiary)"></div>
+        </div>
+      </div>
+      <div id="biz-register-error" style="display:none;background:#FAECE7;color:#D85A30;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:8px">
+        <i class="ti ti-alert-circle" style="font-size:14px"></i> <span id="biz-register-error-msg"></span>
+      </div>
+
+    </div>
+
+    <div class="register-footer">
+      <p class="register-terms">
+        Al registrarte aceptás los <a href="#">Términos y condiciones</a>
+        y la <a href="#">Política de privacidad</a> de DeliMarket.
+      </p>
+      <button class="btn-continue" onclick="registerVendor()">
+        <i class="ti ti-check" style="font-size:18px"></i>
+        Crear mi cuenta de vendedor
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== PANTALLA: PANEL VENDEDOR ===================== -->
+<div class="screen" id="screen-vendor">
+  <div class="vendor-screen">
+
+    <!-- Navbar vendedor -->
+    <div class="vendor-navbar">
+      <div class="vendor-nav-left">
+        <div class="vendor-avatar"><i class="ti ti-store"></i></div>
+        <div>
+          <div class="vendor-name-nav" id="vendor-display-name">Mi negocio</div>
+          <div class="vendor-role-nav">Panel de vendedor</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="dark-mode-toggle" onclick="toggleDarkMode()">
+          <i class="ti ti-moon"></i> Modo nocturno
+        </button>
+        <button class="nav-btn" onclick="doLogout()" style="font-size:12px; padding:6px 12px;">
+          <i class="ti ti-logout" style="font-size:15px"></i>
+          <span class="btn-label">Salir</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="vendor-tabs">
+      <button class="vendor-tab active" onclick="switchTab('dashboard', this)">
+        <i class="ti ti-layout-dashboard"></i> Resumen
+      </button>
+      <button class="vendor-tab" onclick="switchTab('products', this)">
+        <i class="ti ti-package"></i> Mis productos
+      </button>
+      <button class="vendor-tab" onclick="switchTab('orders', this)">
+        <i class="ti ti-receipt"></i> Pedidos
+      </button>
+      <button class="vendor-tab" onclick="switchTab('profile', this)">
+        <i class="ti ti-user"></i> Perfil
+      </button>
+    </div>
+
+    <div class="vendor-body">
+
+      <!-- TAB: DASHBOARD / RESUMEN -->
+      <div id="tab-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Ventas del mes</div>
+            <div class="stat-value green">$0</div>
+            <div class="stat-sub">0 pedidos completados</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Pedidos pendientes</div>
+            <div class="stat-value">0</div>
+            <div class="stat-sub">Sin pedidos nuevos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Productos activos</div>
+            <div class="stat-value" id="stat-products">0</div>
+            <div class="stat-sub">Publicados en el marketplace</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Calificación</div>
+            <div class="stat-value">—</div>
+            <div class="stat-sub">Sin reseñas aún</div>
+          </div>
+        </div>
+
+        <div class="vendor-section-title">Actividad reciente</div>
+        <div style="padding:32px 0;text-align:center;color:var(--color-text-tertiary);font-size:13px;">
+          <i class="ti ti-clock" style="font-size:36px;display:block;margin-bottom:10px;"></i>
+          Todavía no hay actividad.<br>¡Publicá tu primer producto!
+        </div>
+      </div>
+
+      <!-- TAB: MIS PRODUCTOS -->
+      <div id="tab-products" style="display:none">
+        <button class="add-product-btn" onclick="openProductModal()">
+          <i class="ti ti-plus"></i>
+          Agregar nuevo producto
+        </button>
+        <div class="my-products-list" id="my-products-list">
+          <div style="padding:32px 0;text-align:center;color:var(--color-text-tertiary);font-size:13px;">
+            <i class="ti ti-package" style="font-size:36px;display:block;margin-bottom:10px;"></i>
+            Aún no publicaste productos.
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: PEDIDOS -->
+      <div id="tab-orders" style="display:none">
+        <div id="vendor-orders-list"></div>
+      </div>
+
+      <!-- TAB: PERFIL -->
+      <div id="tab-profile" style="display:none">
+        <div class="profile-header">
+          <div class="profile-avatar"><i class="ti ti-store"></i></div>
+          <div class="profile-biz-name" id="profile-biz-name">—</div>
+          <div class="profile-bio" id="profile-bio">Sin descripción aún.</div>
+        </div>
+
+        <div class="profile-data-list">
+          <div class="profile-data-item">
+            <div class="profile-data-icon"><i class="ti ti-id-badge"></i></div>
+            <div class="profile-data-info">
+              <div class="profile-data-label">DNI</div>
+              <div class="profile-data-value" id="profile-dni">—</div>
+            </div>
+          </div>
+          <div class="profile-data-item">
+            <div class="profile-data-icon"><i class="ti ti-phone"></i></div>
+            <div class="profile-data-info">
+              <div class="profile-data-label">Celular</div>
+              <div class="profile-data-value" id="profile-phone">—</div>
+            </div>
+          </div>
+          <div class="profile-data-item">
+            <div class="profile-data-icon"><i class="ti ti-category"></i></div>
+            <div class="profile-data-info">
+              <div class="profile-data-label">Categoría</div>
+              <div class="profile-data-value" id="profile-category">—</div>
+            </div>
+          </div>
+          <div class="profile-data-item">
+            <div class="profile-data-icon"><i class="ti ti-map-pin"></i></div>
+            <div class="profile-data-info">
+              <div class="profile-data-label">Localidad</div>
+              <div class="profile-data-value" id="profile-location">—</div>
+            </div>
+          </div>
+          <div class="profile-data-item">
+            <div class="profile-data-icon"><i class="ti ti-home"></i></div>
+            <div class="profile-data-info">
+              <div class="profile-data-label">Dirección</div>
+              <div class="profile-data-value" id="profile-address">—</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="dark-mode-toggle" onclick="toggleDarkMode()" style="width:100%;margin-bottom:12px;justify-content:center">
+          <i class="ti ti-moon"></i> Modo nocturno
+        </button>
+        <button class="btn-logout" onclick="doLogout()">
+          <i class="ti ti-logout" style="font-size:17px"></i>
+          Cerrar sesión
+        </button>
+      </div>
+
+    </div><!-- /vendor-body -->
+  </div>
+</div>
+
+<!-- ===================== MODAL: CARGAR PRODUCTO ===================== -->
+<div class="modal-overlay" id="product-modal" onclick="closeModalOutside(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Agregar producto</div>
+
+    <div class="form-group">
+      <label class="form-label" for="p-name">Nombre del producto <span>*</span></label>
+      <input class="form-input" id="p-name" type="text" placeholder="Ej: Manzanas rojas x kg">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="p-category">Categoría <span>*</span></label>
+      <select class="form-input" id="p-category">
+        <option value="" disabled selected>Seleccioná</option>
+        <option value="ti-apple">Frutas y verduras</option>
+        <option value="ti-egg">Lácteos y huevos</option>
+        <option value="ti-bread">Panadería</option>
+        <option value="ti-fish">Carnes y aves</option>
+        <option value="ti-bottle">Bebidas</option>
+        <option value="ti-leaf">Otros</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="p-price">Precio ($) <span>*</span></label>
+        <input class="form-input" id="p-price" type="number" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="p-time">Tiempo de entrega</label>
+        <input class="form-input" id="p-time" type="text" placeholder="Ej: 30 min">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="p-desc">Descripción</label>
+      <textarea class="form-input form-textarea" id="p-desc" maxlength="200"
+        placeholder="Describí tu producto: origen, características, etc." style="min-height:70px"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Foto del producto</label>
+      <div onclick="openProductImagePicker()" style="
+        position:relative; width:100%; height:120px; border:1.5px dashed var(--color-border-secondary);
+        border-radius:var(--border-radius-lg); background:var(--color-background-secondary);
+        display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;">
+        <div id="p-img-icon" style="display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--color-text-tertiary)">
+          <i class="ti ti-photo-up" style="font-size:28px"></i>
+          <span style="font-size:12px">Subir foto (JPG, PNG · máx 2 MB)</span>
+        </div>
+        <img id="p-img-preview" src="" alt="preview"
+          style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">
+      </div>
+      <input type="file" id="p-img-input" accept="image/*" style="display:none" onchange="onProductImageSelected(this)">
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeProductModal()">Cancelar</button>
+      <button class="btn-primary-full" id="p-save-btn" onclick="saveProduct()">
+        <i class="ti ti-check" style="font-size:16px;margin-right:6px"></i>
+        Publicar producto
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/temas.js"></script>
+<script src="js/vendedor.js"></script>
+</body>
+</html>

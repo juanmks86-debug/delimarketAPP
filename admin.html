@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeliMarket — Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="css/estilos.css">
+  <link rel="stylesheet" href="css/estilos-vendedor.css">
+  <link rel="stylesheet" href="css/estilos-admin.css">
+  <link rel="stylesheet" href="css/estilos-banners.css">
+</head>
+<body>
+
+<div class="admin-layout">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="admin-sidebar" id="sidebar">
+    <div class="admin-logo">
+      <i class="ti ti-motorbike"></i>
+      <span>DeliMarket</span>
+    </div>
+    <div class="admin-role-badge">Panel Administrador</div>
+
+    <nav class="admin-nav">
+      <button class="admin-nav-item active" onclick="switchAdminTab('dashboard', this)">
+        <i class="ti ti-layout-dashboard"></i> Resumen
+      </button>
+      <button class="admin-nav-item" onclick="switchAdminTab('vendors', this)">
+        <i class="ti ti-store"></i> Vendedores
+      </button>
+      <button class="admin-nav-item" onclick="switchAdminTab('consumers', this)">
+        <i class="ti ti-users"></i> Consumidores
+      </button>
+      <button class="admin-nav-item" onclick="switchAdminTab('products', this)">
+        <i class="ti ti-package"></i> Productos
+      </button>
+      <button class="admin-nav-item" onclick="switchAdminTab('banners', this)">
+        <i class="ti ti-speakerphone"></i> Publicidad
+      </button>
+      <button class="admin-nav-item" onclick="switchAdminTab('temas', this)">
+        <i class="ti ti-palette"></i> Temas
+      </button>
+    </nav>
+
+    <button class="admin-dark-toggle" onclick="toggleDarkMode()" id="admin-dark-btn">
+      <i class="ti ti-moon"></i> Modo nocturno
+    </button>
+    <button class="admin-dark-toggle" id="admin-dark-btn" onclick="toggleDarkMode()">
+      <i class="ti ti-moon"></i> Modo nocturno
+    </button>
+    <button class="admin-logout" onclick="window.location.href='vendedor.html'">
+      <i class="ti ti-logout"></i> Salir
+    </button>
+  </aside>
+
+  <!-- ===== CONTENIDO PRINCIPAL ===== -->
+  <main class="admin-main">
+
+    <!-- Topbar móvil -->
+    <div class="admin-topbar">
+      <button class="admin-menu-btn" onclick="toggleSidebar()">
+        <i class="ti ti-menu-2" style="font-size:20px"></i>
+      </button>
+      <span class="admin-topbar-title" id="topbar-title">Resumen</span>
+    </div>
+
+    <!-- TAB: DASHBOARD -->
+    <div class="admin-tab" id="tab-dashboard">
+      <div class="admin-tab-header">
+        <h2 class="admin-tab-title">Resumen general</h2>
+        <span class="admin-tab-sub">Visión general de la plataforma</span>
+      </div>
+      <div class="admin-stats-grid" id="admin-stats"></div>
+      <div class="admin-section-title" style="margin-top:28px">Actividad reciente</div>
+      <div class="admin-activity-list" id="admin-activity">
+        <div class="admin-empty">
+          <i class="ti ti-clock"></i>
+          <p>No hay actividad registrada aún.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB: VENDEDORES -->
+    <div class="admin-tab" id="tab-vendors" style="display:none">
+      <div class="admin-tab-header">
+        <h2 class="admin-tab-title">Vendedores</h2>
+        <span class="admin-tab-sub" id="vendor-count-label">—</span>
+      </div>
+      <div id="admin-vendors-list"></div>
+    </div>
+
+    <!-- TAB: CONSUMIDORES -->
+    <div class="admin-tab" id="tab-consumers" style="display:none">
+      <div class="admin-tab-header">
+        <h2 class="admin-tab-title">Consumidores</h2>
+        <span class="admin-tab-sub" id="consumer-count-label">—</span>
+      </div>
+      <div id="admin-consumers-list"></div>
+    </div>
+
+    <!-- TAB: PRODUCTOS -->
+    <div class="admin-tab" id="tab-products" style="display:none">
+      <div class="admin-tab-header">
+        <h2 class="admin-tab-title">Productos publicados</h2>
+        <span class="admin-tab-sub" id="product-count-label">—</span>
+      </div>
+      <div id="admin-products-list"></div>
+    </div>
+
+    <!-- TAB: BANNERS / PUBLICIDAD -->
+    <div class="admin-tab" id="tab-banners" style="display:none">
+      <div class="admin-tab-header">
+        <h2 class="admin-tab-title">Banners publicitarios</h2>
+        <span class="admin-tab-sub" id="banner-count-label">0 de 3 banners activos</span>
+      </div>
+      <div class="admin-banner-upload-area">
+        <label for="banner-title-input">Título del banner (opcional)</label>
+        <input class="form-input" id="banner-title-input" type="text"
+          placeholder="Ej: ¡Oferta de temporada! — Frutas frescas">
+        <button id="banner-upload-btn" onclick="openBannerFilePicker()">
+          <i class="ti ti-photo-up"></i>
+          Subir imagen (JPG, PNG · máx. 2 MB)
+        </button>
+        <input type="file" id="banner-file-input" accept="image/*"
+          style="display:none" onchange="onBannerFileSelected(this)">
+      </div>
+      <div class="admin-section-title">Banners publicados</div>
+      <div id="admin-banners-list"></div>
+    </div>
+
+    <!-- TAB: TEMAS ESTACIONALES -->
+    <div class="admin-tab" id="tab-temas" style="display:none">
+      <div class="admin-tab-header">
+        <h2 class="admin-tab-title">Temas estacionales</h2>
+        <span class="admin-tab-sub">Cambia los colores y decoraciones del marketplace</span>
+      </div>
+      <div class="admin-section-title">Seleccioná un tema</div>
+      <div class="admin-temas-grid" id="admin-temas-grid"></div>
+      <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:-8px">
+        <i class="ti ti-info-circle" style="font-size:13px"></i>
+        El tema se aplica en tiempo real en el index para todos los usuarios.
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/temas.js"></script>
+<script src="js/banners.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
