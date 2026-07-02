@@ -632,6 +632,8 @@ function doLogout() {
   myProducts = [];
   window.location.href = 'index.html';
 }
+
+function advanceOrderStatus(idx) {
   const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
   const next = STATUS_NEXT[allOrders[idx].status];
   if (!next) return;
