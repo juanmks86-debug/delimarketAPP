@@ -9,6 +9,30 @@
   <link rel="stylesheet" href="css/estilos-vendedor.css">
   <link rel="stylesheet" href="css/estilos-admin.css">
   <link rel="stylesheet" href="css/estilos-banners.css">
+  <script>
+  (function checkAdminAccess() {
+    const token = sessionStorage.getItem('dm_admin_token');
+    if (!token) {
+      window.location.href = 'vendedor.html';
+      return;
+    }
+    fetch('/api/verify-admin-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.valid) {
+          sessionStorage.removeItem('dm_admin_token');
+          window.location.href = 'vendedor.html';
+        }
+      })
+      .catch(() => {
+        window.location.href = 'vendedor.html';
+      });
+  })();
+</script>
 </head>
 <body>
 
