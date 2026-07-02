@@ -73,11 +73,27 @@ function continueLogin(action) {
   if (selectedRole === 'admin') {
     const pass = prompt('Ingresá la contraseña de administrador:');
     if (pass === null) return; // canceló
-    if (btoa(pass) !== btoa('Admin123!')) {
-      alert('Contraseña incorrecta. Acceso denegado.');
-      return;
-    }
-    window.location.href = 'admin.html';
+
+    // La contraseña YA NO se valida en el navegador.
+    // Se envía a una función serverless (/api/admin-login) que la compara
+    // contra process.env.ADMIN_PASSWORD en el servidor de Vercel.
+    fetch('/api/admin-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pass })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          // Guardamos el token temporal firmado; admin.html lo va a
+          // verificar contra el servidor antes de mostrar el panel.
+          sessionStorage.setItem('dm_admin_token', data.token);
+          window.location.href = 'admin.html';
+        } else {
+          alert('Contraseña incorrecta. Acceso denegado.');
+        }
+      })
+      .catch(() => alert('Error al validar la contraseña. Intentá de nuevo.'));
     return;
   }
 
