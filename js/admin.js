@@ -21,11 +21,28 @@ const DEMO_PRODUCTS = [
 //   LEER DATOS DEL localStorage
 // =============================================
 
+function getAllVendorProducts() {
+  // Cada vendedor tiene su propia clave: dm_vendor_products_<identifier>.
+  // Acá los juntamos todos, recordando de qué clave vino cada uno,
+  // para poder editarlos/borrarlos correctamente después.
+  const all = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('dm_vendor_products_')) {
+      try {
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        arr.forEach(p => all.push({ ...p, _storageKey: key }));
+      } catch (e) { /* clave corrupta, se ignora */ }
+    }
+  }
+  return all;
+}
+
 function getData() {
   // dm_users guarda TODAS las cuentas registradas (vendedores y consumidores),
   // cada una con su "identifier" (correo/celular) único.
   const users    = JSON.parse(localStorage.getItem('dm_users')          || '[]');
-  const products = JSON.parse(localStorage.getItem('dm_vendor_products')  || '[]');
+  const products = getAllVendorProducts();
   const orders   = JSON.parse(localStorage.getItem('dm_orders')           || '[]');
 
   // Pendientes de aprobación
@@ -330,14 +347,13 @@ function deleteVendor(identifier) {
   localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
 
   if (target) {
-    // Borrar sus productos publicados
-    localStorage.removeItem('dm_vendor_products_' + target.profile.name);
+    // Borrar sus productos publicados (clave propia por identificador)
+    localStorage.removeItem('dm_vendor_products_' + identifier);
 
     // Si este vendedor tenía la sesión activa en este navegador, cerrarla también
     const activeVendor = JSON.parse(localStorage.getItem('dm_vendor_profile') || 'null');
-    if (activeVendor && activeVendor.dni === target.profile.dni) {
+    if (activeVendor && activeVendor.identifier === identifier) {
       localStorage.removeItem('dm_vendor_profile');
-      localStorage.removeItem('dm_vendor_products');
     }
   }
 
@@ -368,9 +384,15 @@ function deleteConsumer(identifier) {
 
 function deleteAdminProduct(idx) {
   if (!confirm('¿Eliminar este producto del marketplace?')) return;
-  const products = JSON.parse(localStorage.getItem('dm_vendor_products') || '[]');
-  products.splice(idx, 1);
-  localStorage.setItem('dm_vendor_products', JSON.stringify(products));
+  const products = getAllVendorProducts();
+  const target = products[idx];
+  if (!target) return;
+
+  const arr = JSON.parse(localStorage.getItem(target._storageKey) || '[]');
+  const realIdx = arr.findIndex(p => p.id === target.id);
+  if (realIdx !== -1) arr.splice(realIdx, 1);
+  localStorage.setItem(target._storageKey, JSON.stringify(arr));
+
   init();
 }
 
