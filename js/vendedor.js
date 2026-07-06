@@ -113,6 +113,22 @@ function continueLogin(action) {
 //   UTILIDADES DE CONTRASEÑA
 // =============================================
 
+// Antes las contraseñas se guardaban con btoa(), que NO es cifrado
+// (cualquiera las puede decodificar al instante). Ahora usamos
+// SHA-256 + salt aleatoria, con la API nativa del navegador (Web Crypto).
+function generateSalt() {
+  const arr = new Uint8Array(16);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function hashPassword(password, salt) {
+  const enc  = new TextEncoder();
+  const data = enc.encode(salt + password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 function togglePass(inputId) {
   const input = document.getElementById(inputId);
   const eye   = document.getElementById(inputId + '-eye');
@@ -168,7 +184,7 @@ function hideAuthError(containerId) {
 //   LOGIN CON CREDENCIALES
 // =============================================
 
-function doLogin() {
+async function doLogin() {
   const identifier = document.getElementById('login-identifier').value.trim();
   const password   = document.getElementById('login-password').value;
   hideAuthError('login-error');
@@ -187,7 +203,8 @@ function doLogin() {
       showAuthError('login-error', 'login-error-msg', 'No encontramos una cuenta con ese correo o celular. ¿Querés registrarte?');
       return;
     }
-    if (user.password !== btoa(password)) {
+    const hash = await hashPassword(password, user.salt);
+    if (hash !== user.passwordHash) {
       showAuthError('login-error', 'login-error-msg', 'Contraseña incorrecta. Intentá de nuevo.');
       return;
     }
@@ -203,7 +220,8 @@ function doLogin() {
       showAuthError('login-error', 'login-error-msg', 'No encontramos una cuenta de vendedor con ese correo o celular.');
       return;
     }
-    if (user.password !== btoa(password)) {
+    const hash = await hashPassword(password, user.salt);
+    if (hash !== user.passwordHash) {
       showAuthError('login-error', 'login-error-msg', 'Contraseña incorrecta. Intentá de nuevo.');
       return;
     }
@@ -214,9 +232,9 @@ function doLogin() {
       showAuthError('login-error', 'login-error-msg', '⏳ Tu cuenta está pendiente de aprobación por el administrador.');
       return;
     }
-    vendorProfile = user.profile;
-    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + user.profile.name) || '[]');
-    localStorage.setItem('dm_vendor_profile', JSON.stringify(user.profile));
+    vendorProfile = { ...user.profile, identifier: user.identifier };
+    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + user.identifier) || '[]');
+    localStorage.setItem('dm_vendor_profile', JSON.stringify(vendorProfile));
     loadVendorPanel();
     showScreen('vendor');
   }
@@ -240,7 +258,7 @@ function previewConsumerAvatar(input) {
   }
 }
 
-function registerConsumer() {
+async function registerConsumer() {
   const firstname   = document.getElementById('c-firstname').value.trim();
   const lastname    = document.getElementById('c-lastname').value.trim();
   const dni         = document.getElementById('c-dni').value.trim();
@@ -273,7 +291,9 @@ function registerConsumer() {
   }
 
   const profile = { firstname, lastname, dni, phone, location, address };
-  users.push({ role: 'consumer', identifier, phone, password: btoa(password), profile });
+  const salt = generateSalt();
+  const passwordHash = await hashPassword(password, salt);
+  users.push({ role: 'consumer', identifier, phone, salt, passwordHash, profile });
   localStorage.setItem('dm_users', JSON.stringify(users));
 
   consumerProfile = profile;
@@ -304,7 +324,7 @@ function previewAvatar(input) {
   }
 }
 
-function registerVendor() {
+async function registerVendor() {
   const name       = document.getElementById('biz-name').value.trim();
   const dni        = document.getElementById('biz-dni').value.trim();
   const phone      = document.getElementById('biz-phone').value.trim();
@@ -337,12 +357,14 @@ function registerVendor() {
   }
 
   const profile = { name, dni, phone, category, location, bio, address };
-  users.push({ role: 'vendor', identifier, phone, password: btoa(password), profile });
+  const salt = generateSalt();
+  const passwordHash = await hashPassword(password, salt);
+  users.push({ role: 'vendor', identifier, phone, salt, passwordHash, profile });
   localStorage.setItem('dm_users', JSON.stringify(users));
 
   // Guardar en lista de pendientes para aprobación del admin
   const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
-  pending.push(profile);
+  pending.push({ ...profile, identifier });
   localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
 
   showWelcomeToast('¡Solicitud enviada! El administrador revisará tu cuenta 🕐');
@@ -500,6 +522,7 @@ function saveProduct() {
     id: editingProductIdx !== null ? myProducts[editingProductIdx].id : Date.now(),
     name, icon, price, time, desc,
     vendor: vendorProfile.name,
+    vendorIdentifier: vendorProfile.identifier,
     categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
     image: window._pendingProductImage || null,
   };
@@ -510,7 +533,7 @@ function saveProduct() {
     myProducts.push(product);
   }
   editingProductIdx = null;
-  localStorage.setItem('dm_vendor_products', JSON.stringify(myProducts));
+  localStorage.setItem('dm_vendor_products_' + vendorProfile.identifier, JSON.stringify(myProducts));
   document.getElementById('stat-products').textContent = myProducts.length;
   renderMyProducts();
   closeProductModal();
@@ -552,7 +575,7 @@ function renderMyProducts() {
 function deleteProduct(idx) {
   if (!confirm('¿Eliminar este producto?')) return;
   myProducts.splice(idx, 1);
-  localStorage.setItem('dm_vendor_products', JSON.stringify(myProducts));
+  localStorage.setItem('dm_vendor_products_' + vendorProfile.identifier, JSON.stringify(myProducts));
   document.getElementById('stat-products').textContent = myProducts.length;
   renderMyProducts();
 }
@@ -639,13 +662,17 @@ function renderVendorOrders() {
 
 function doLogout() {
   if (!confirm('¿Cerrar sesión?')) return;
-  localStorage.removeItem('dm_vendor_profile');
-  localStorage.removeItem('dm_consumer_profile');
+  if (vendorProfile) {
+    localStorage.removeItem('dm_vendor_profile');
+    vendorProfile = null;
+    myProducts = [];
+  }
+  if (consumerProfile) {
+    localStorage.removeItem('dm_consumer_profile');
+    consumerProfile = null;
+  }
   sessionStorage.removeItem('dm_pending_role');
   sessionStorage.removeItem('dm_pending_action');
-  vendorProfile = null;
-  consumerProfile = null;
-  myProducts = [];
   window.location.href = 'index.html';
 }
 
@@ -665,7 +692,7 @@ function advanceOrderStatus(idx) {
   const savedVendor = localStorage.getItem('dm_vendor_profile');
   if (savedVendor) {
     vendorProfile = JSON.parse(savedVendor);
-    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products') || '[]');
+    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + vendorProfile.identifier) || '[]');
   }
   const savedConsumer = localStorage.getItem('dm_consumer_profile');
   if (savedConsumer) consumerProfile = JSON.parse(savedConsumer);
