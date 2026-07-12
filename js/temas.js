@@ -341,6 +341,23 @@ function stopParticles() {
     body.tema-vacaciones .checkout-btn,
     body.tema-vacaciones .add-to-cart-btn { background: var(--theme-primary) !important; }
 
+    /* Contraste de los botones del navbar (Ingresar / Modo nocturno)
+       cuando hay un tema decorativo activo. Antes se quedaban con su
+       gris clarito de siempre, pensado para fondo blanco, y casi no
+       se veían sobre el navbar oscuro/de color del tema. */
+    body[class*="tema-"]:not(.tema-ninguno) .navbar .nav-btn,
+    body[class*="tema-"]:not(.tema-ninguno) .navbar .dark-mode-toggle {
+      color: var(--theme-navbar-text, #fff) !important;
+      border-color: rgba(255,255,255,0.45) !important;
+    }
+    body[class*="tema-"]:not(.tema-ninguno) .navbar .nav-btn:hover,
+    body[class*="tema-"]:not(.tema-ninguno) .navbar .dark-mode-toggle:hover {
+      background: rgba(255,255,255,0.15) !important;
+    }
+    body[class*="tema-"]:not(.tema-ninguno) .navbar .nav-btn.primary {
+      border-color: transparent !important;
+    }
+
     /* MODO NOCTURNO */
     body.dark-mode {
       --color-background-primary:   #1a1a1a !important;
@@ -402,9 +419,11 @@ function toggleDarkMode() {
 function updateDarkToggleUI() {
   const isDark = document.body.classList.contains('dark-mode');
   document.querySelectorAll('.dark-mode-toggle').forEach(btn => {
-    btn.innerHTML = isDark
-      ? '<i class="ti ti-sun"></i> Modo claro'
-      : '<i class="ti ti-moon"></i> Modo nocturno';
+    // Solo ícono (sol/luna) — el patrón es reconocible sin texto y
+    // ahorra espacio en el navbar. El title queda para accesibilidad
+    // y para quien pase el mouse por encima.
+    btn.innerHTML = isDark ? '<i class="ti ti-sun"></i>' : '<i class="ti ti-moon"></i>';
+    btn.title = isDark ? 'Modo claro' : 'Modo nocturno';
   });
 }
 
