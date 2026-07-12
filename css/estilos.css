@@ -373,6 +373,21 @@
   .carousel-track-container { margin: 0; }
 }
 
+/* ----- 9b. RESPONSIVE — tablet / escritorio -----
+   Por defecto .screen no tenía límite de ancho, así que en pantallas
+   grandes el navbar, el hero y los formularios se estiraban de punta
+   a punta. A partir de 640px centramos el contenido en una columna
+   tipo "app", igual que ya se hacía con .modal-sheet. */
+@media (min-width: 640px) {
+  body { background: var(--color-background-secondary); }
+  .screen {
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--color-background-primary);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+  }
+}
+
 /* =============================================
    SISTEMA DE PEDIDOS — estilos adicionales
 ============================================= */

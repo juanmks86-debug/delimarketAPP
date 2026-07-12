@@ -349,3 +349,19 @@
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .btn-logout:hover { background: #FAECE7; }
+
+/* ----- RESPONSIVE — tablet / escritorio -----
+   .login-screen, .register-screen y .vendor-screen no tenían límite
+   de ancho: en pantallas grandes el formulario y el dashboard se
+   estiraban de punta a punta. Centramos todo en una columna tipo
+   "app" a partir de 640px, igual que en estilos.css. */
+@media (min-width: 640px) {
+  body { background: var(--color-background-secondary); }
+  .login-screen,
+  .register-screen,
+  .vendor-screen {
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+  }
+}
