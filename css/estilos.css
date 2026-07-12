@@ -373,12 +373,12 @@
   .carousel-track-container { margin: 0; }
 }
 
-/* ----- 9b. RESPONSIVE — tablet / escritorio -----
+/* ----- 9b. RESPONSIVE — tablet -----
    Por defecto .screen no tenía límite de ancho, así que en pantallas
-   grandes el navbar, el hero y los formularios se estiraban de punta
-   a punta. A partir de 640px centramos el contenido en una columna
-   tipo "app", igual que ya se hacía con .modal-sheet. */
-@media (min-width: 640px) {
+   medianas el navbar, el hero y los formularios se estiraban de punta
+   a punta. Entre 640px y 1023px (celular grande / tablet) mantenemos
+   una columna angosta tipo "app", similar a .modal-sheet. */
+@media (min-width: 640px) and (max-width: 1023px) {
   body { background: var(--color-background-secondary); }
   .screen {
     max-width: 480px;
@@ -386,6 +386,25 @@
     background: var(--color-background-primary);
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
   }
+}
+
+/* ----- 9c. RESPONSIVE — escritorio -----
+   A partir de 1024px ya no tiene sentido angostar todo a 480px como
+   si fuera un celular estirado: se aprovecha el ancho real, el
+   navbar ocupa todo el ancho, y el carrusel de productos muestra
+   más tarjetas por fila (ver también carousel.js, tope subido a 4). */
+@media (min-width: 1024px) {
+  body { background: var(--color-background-secondary); }
+  .screen {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: var(--color-background-primary);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.06);
+  }
+  .navbar { padding: 14px 32px; }
+  .search-bar { margin: 16px 32px 0; }
+  .hero { margin: 14px 32px 0; }
+  .section { padding: 18px 32px; }
 }
 
 /* =============================================

@@ -22,7 +22,10 @@ let maxIndex = 0;
 function calcDimensions() {
   const totalCards = track.children.length;
   const containerW = container.offsetWidth;
-  visible = Math.max(1, Math.min(3, Math.floor(containerW / 160)));
+  // Tope subido de 3 a 4: en pantallas de escritorio (.screen ahora
+  // llega a 1100px) entran cómodamente 4 tarjetas por fila en vez
+  // de solo 3, aprovechando mejor el ancho disponible.
+  visible = Math.max(1, Math.min(4, Math.floor(containerW / 160)));
   const gap = 12;
   cardWidth = (containerW - gap * (visible - 1)) / visible;
 
