@@ -21,22 +21,51 @@ const DEMO_PRODUCTS = [
 //   LEER DATOS DEL localStorage
 // =============================================
 
+function getAllVendorProducts() {
+  // Cada vendedor tiene su propia clave: dm_vendor_products_<identifier>.
+  // Acá los juntamos todos, recordando de qué clave vino cada uno,
+  // para poder editarlos/borrarlos correctamente después.
+  const all = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('dm_vendor_products_')) {
+      try {
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        arr.forEach(p => all.push({ ...p, _storageKey: key }));
+      } catch (e) { /* clave corrupta, se ignora */ }
+    }
+  }
+  return all;
+}
+
 function getData() {
-  const vendor   = JSON.parse(localStorage.getItem('dm_vendor_profile')   || 'null');
-  const consumer = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
-  const products = JSON.parse(localStorage.getItem('dm_vendor_products')  || '[]');
+  // dm_users guarda TODAS las cuentas registradas (vendedores y consumidores),
+  // cada una con su "identifier" (correo/celular) único.
+  const users    = JSON.parse(localStorage.getItem('dm_users')          || '[]');
+  const products = getAllVendorProducts();
   const orders   = JSON.parse(localStorage.getItem('dm_orders')           || '[]');
 
   // Pendientes de aprobación
   const pending  = JSON.parse(localStorage.getItem('dm_vendors_pending')  || '[]');
+  const pendingIds = new Set(pending.map(p => p.identifier));
+
+  const vendors = users
+    .filter(u => u.role === 'vendor' && !pendingIds.has(u.identifier))
+    .map(u => ({ ...u.profile, identifier: u.identifier }));
+
+  const consumers = users
+    .filter(u => u.role === 'consumer')
+    .map(u => ({ ...u.profile, identifier: u.identifier }));
+
+  const noRealData = users.length === 0 && pending.length === 0;
 
   return {
-    vendors:   vendor   ? [vendor]   : [DEMO_VENDOR],
-    consumers: consumer ? [consumer] : [DEMO_CONSUMER],
-    products:  products.length > 0 ? products : DEMO_PRODUCTS,
+    vendors:   noRealData ? [DEMO_VENDOR]   : vendors,
+    consumers: noRealData ? [DEMO_CONSUMER] : consumers,
+    products:  products.length > 0 ? products : (noRealData ? DEMO_PRODUCTS : []),
     orders,
     pending,
-    isDemo:    !vendor && !consumer,
+    isDemo:    noRealData,
   };
 }
 
@@ -195,7 +224,7 @@ function renderVendors(data) {
           ${v.bio ? `<div class="admin-item-detail" style="font-style:italic">"${v.bio}"</div>` : ''}
         </div>
         ${!data.isDemo ? `
-          <button class="admin-delete-btn" onclick="deleteVendor()" aria-label="Eliminar vendedor">
+          <button class="admin-delete-btn" data-id="${v.identifier}" onclick="deleteVendor(this.dataset.id)" aria-label="Eliminar vendedor">
             <i class="ti ti-trash" style="font-size:16px"></i>
           </button>` : ''}
       </div>`).join('');
@@ -230,7 +259,7 @@ function renderConsumers(data) {
         <div class="admin-item-detail">${c.address}</div>
       </div>
       ${!data.isDemo ? `
-        <button class="admin-delete-btn" onclick="deleteConsumer()" aria-label="Eliminar consumidor">
+        <button class="admin-delete-btn" data-id="${c.identifier}" onclick="deleteConsumer(this.dataset.id)" aria-label="Eliminar consumidor">
           <i class="ti ti-trash" style="font-size:16px"></i>
         </button>` : ''}
     </div>
@@ -276,12 +305,12 @@ function renderAdminProducts(data) {
 // =============================================
 
 function approveVendor(idx) {
+  // La cuenta ya está guardada en dm_users desde el registro;
+  // aprobar solo significa sacarla de la lista de pendientes.
   const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
   const vendor  = pending.splice(idx, 1)[0];
   if (!vendor) return;
   localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
-  // Guardar como vendedor aprobado
-  localStorage.setItem('dm_vendor_profile', JSON.stringify(vendor));
   showAdminToast(`✅ ${vendor.name} aprobado`);
   init();
 }
@@ -291,28 +320,79 @@ function rejectVendor(idx) {
   const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
   const vendor  = pending.splice(idx, 1)[0];
   localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
+
+  // También eliminamos la cuenta creada en dm_users, ya que fue rechazada
+  if (vendor && vendor.identifier) {
+    let users = JSON.parse(localStorage.getItem('dm_users') || '[]');
+    users = users.filter(u => !(u.role === 'vendor' && u.identifier === vendor.identifier));
+    localStorage.setItem('dm_users', JSON.stringify(users));
+  }
+
   showAdminToast(`❌ Solicitud de ${vendor?.name} rechazada`);
   init();
 }
 
-function deleteVendor() {
+function deleteVendor(identifier) {
+  if (!identifier) return;
   if (!confirm('¿Eliminar este vendedor y todos sus productos?')) return;
-  localStorage.removeItem('dm_vendor_profile');
-  localStorage.removeItem('dm_vendor_products');
+
+  let users = JSON.parse(localStorage.getItem('dm_users') || '[]');
+  const target = users.find(u => u.role === 'vendor' && u.identifier === identifier);
+  users = users.filter(u => !(u.role === 'vendor' && u.identifier === identifier));
+  localStorage.setItem('dm_users', JSON.stringify(users));
+
+  // Por si había quedado una solicitud pendiente con ese identificador
+  let pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
+  pending = pending.filter(p => p.identifier !== identifier);
+  localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
+
+  if (target) {
+    // Borrar sus productos publicados (clave propia por identificador)
+    localStorage.removeItem('dm_vendor_products_' + identifier);
+
+    // Si este vendedor tenía la sesión activa en este navegador, cerrarla también
+    const activeVendor = JSON.parse(localStorage.getItem('dm_vendor_profile') || 'null');
+    if (activeVendor && activeVendor.identifier === identifier) {
+      localStorage.removeItem('dm_vendor_profile');
+    }
+  }
+
+  showAdminToast('🗑️ Vendedor eliminado');
   init();
 }
 
-function deleteConsumer() {
+function deleteConsumer(identifier) {
+  if (!identifier) return;
   if (!confirm('¿Eliminar este consumidor?')) return;
-  localStorage.removeItem('dm_consumer_profile');
+
+  let users = JSON.parse(localStorage.getItem('dm_users') || '[]');
+  const target = users.find(u => u.role === 'consumer' && u.identifier === identifier);
+  users = users.filter(u => !(u.role === 'consumer' && u.identifier === identifier));
+  localStorage.setItem('dm_users', JSON.stringify(users));
+
+  if (target) {
+    // Si este consumidor tenía la sesión activa en este navegador, cerrarla también
+    const activeConsumer = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
+    if (activeConsumer && activeConsumer.dni === target.profile.dni) {
+      localStorage.removeItem('dm_consumer_profile');
+    }
+  }
+
+  showAdminToast('🗑️ Consumidor eliminado');
   init();
 }
 
 function deleteAdminProduct(idx) {
   if (!confirm('¿Eliminar este producto del marketplace?')) return;
-  const products = JSON.parse(localStorage.getItem('dm_vendor_products') || '[]');
-  products.splice(idx, 1);
-  localStorage.setItem('dm_vendor_products', JSON.stringify(products));
+  const products = getAllVendorProducts();
+  const target = products[idx];
+  if (!target) return;
+
+  const arr = JSON.parse(localStorage.getItem(target._storageKey) || '[]');
+  const realIdx = arr.findIndex(p => p.id === target.id);
+  if (realIdx !== -1) arr.splice(realIdx, 1);
+  localStorage.setItem(target._storageKey, JSON.stringify(arr));
+
   init();
 }
 

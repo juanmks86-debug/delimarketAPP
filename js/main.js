@@ -127,9 +127,21 @@ function goToVendedor(role) {
  * si no hay muestra solo los demo.
  */
 function loadProducts() {
-  const vendorProducts = JSON.parse(localStorage.getItem('dm_vendor_products') || '[]');
+  // Cada vendedor guarda sus productos en su propia clave
+  // (dm_vendor_products_<identifier>). Acá los juntamos todos
+  // para mostrar el catálogo completo a los consumidores.
+  const vendorProducts = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('dm_vendor_products_')) {
+      try {
+        const arr = JSON.parse(localStorage.getItem(key) || '[]');
+        vendorProducts.push(...arr);
+      } catch (e) { /* clave corrupta, se ignora */ }
+    }
+  }
 
-  // Los productos del vendedor van primero, luego los demo
+  // Los productos reales van primero, luego los demo
   allProducts = vendorProducts.length > 0
     ? [...vendorProducts, ...DEMO_PRODUCTS]
     : [...DEMO_PRODUCTS];
