@@ -65,17 +65,8 @@ function initSession() {
       <button class="nav-btn" onclick="logoutConsumer()" title="Cerrar sesión" style="padding:7px 10px">
         <i class="ti ti-logout" style="font-size:16px"></i>
       </button>
-      <button class="nav-btn primary" onclick="goToVendedor('vendor')">
-        <i class="ti ti-plus" style="font-size:16px"></i>
-        <span class="btn-label"> Publicar</span>
-      </button>
     `;
-    if (heroCta) heroCta.innerHTML = `
-      <button class="hero-btn-secondary" onclick="goToVendedor('vendor')">
-        <i class="ti ti-store" style="font-size:16px"></i>
-        Publicar mis productos
-      </button>
-    `;
+    if (heroCta) heroCta.innerHTML = '';
   } else {
     navActions.innerHTML = `
       <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Modo nocturno">
