@@ -113,23 +113,36 @@ function goToVendedor(role) {
 // =============================================
 
 /**
- * Carga productos del localStorage del vendedor.
- * Si hay productos reales los mezcla con los demo,
- * si no hay muestra solo los demo.
+ * Carga productos desde Supabase (tabla `productos`, con el nombre
+ * del vendedor desde `vendedores`). Si hay productos reales los
+ * mezcla con los demo, si no hay o falla la conexión muestra los demo.
  */
-function loadProducts() {
-  // Cada vendedor guarda sus productos en su propia clave
-  // (dm_vendor_products_<identifier>). Acá los juntamos todos
-  // para mostrar el catálogo completo a los consumidores.
-  const vendorProducts = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('dm_vendor_products_')) {
-      try {
-        const arr = JSON.parse(localStorage.getItem(key) || '[]');
-        vendorProducts.push(...arr);
-      } catch (e) { /* clave corrupta, se ignora */ }
-    }
+async function loadProducts() {
+  let vendorProducts = [];
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('productos')
+      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, vendedores(nombre_negocio)')
+      .eq('activo', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Adaptamos las columnas de la tabla a la forma que espera el resto
+    // del código (mismo shape que antes tenían los objetos en localStorage).
+    vendorProducts = (data || []).map(p => ({
+      id: p.id,
+      name: p.nombre,
+      vendor: p.vendedores?.nombre_negocio || 'Vendedor',
+      price: p.precio,
+      time: p.tiempo_preparacion || '—',
+      desc: p.descripcion || '',
+      image: p.imagen_url || null,
+      icon: p.categoria || 'ti-package',
+    }));
+  } catch (e) {
+    console.error('No se pudieron cargar los productos desde Supabase:', e);
   }
 
   // Los productos reales van primero, luego los demo

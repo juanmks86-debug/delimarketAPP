@@ -214,26 +214,29 @@ async function doLogin() {
     setTimeout(() => window.location.href = 'index.html', 900);
 
   } else if (role === 'vendor') {
-    const users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-    const user  = users.find(u => u.role === 'vendor' && (u.identifier === identifier || u.phone === identifier));
-    if (!user) {
-      showAuthError('login-error', 'login-error-msg', 'No encontramos una cuenta de vendedor con ese correo o celular.');
+    const { data, error } = await supabaseClient.rpc('login_vendedor', {
+      p_identifier: identifier,
+      p_password: password,
+    });
+
+    if (error) {
+      showAuthError('login-error', 'login-error-msg', 'Error de conexión. Intentá de nuevo.');
       return;
     }
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) {
-      showAuthError('login-error', 'login-error-msg', 'Contraseña incorrecta. Intentá de nuevo.');
+    if (!data.success) {
+      const mensajes = {
+        no_existe: 'No encontramos una cuenta de vendedor con ese correo o celular.',
+        password_incorrecta: 'Contraseña incorrecta. Intentá de nuevo.',
+        pendiente: '⏳ Tu cuenta está pendiente de aprobación por el administrador.',
+        rechazado: 'Tu cuenta fue rechazada por el administrador.',
+      };
+      showAuthError('login-error', 'login-error-msg', mensajes[data.error] || 'No se pudo iniciar sesión.');
       return;
     }
-    // Verificar si está pendiente de aprobación
-    const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
-    const isPending = pending.some(p => p.dni === user.profile.dni);
-    if (isPending) {
-      showAuthError('login-error', 'login-error-msg', '⏳ Tu cuenta está pendiente de aprobación por el administrador.');
-      return;
-    }
-    vendorProfile = { ...user.profile, identifier: user.identifier };
-    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + user.identifier) || '[]');
+
+    // perfil.id es el uuid real en Supabase; identifier queda como el email/celular
+    vendorProfile = { ...data.perfil, identifier: data.perfil.email };
+    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + vendorProfile.id) || '[]');
     localStorage.setItem('dm_vendor_profile', JSON.stringify(vendorProfile));
     loadVendorPanel();
     showScreen('vendor');
@@ -350,22 +353,27 @@ async function registerVendor() {
     return;
   }
 
-  const users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-  if (users.find(u => u.identifier === identifier)) {
+  const { data, error } = await supabaseClient.rpc('registrar_vendedor', {
+    p_nombre_negocio: name,
+    p_nombre_contacto: null,
+    p_dni: dni,
+    p_email: identifier,
+    p_telefono: phone,
+    p_categoria: category,
+    p_ubicacion: location,
+    p_bio: bio,
+    p_direccion: address,
+    p_password: password,
+  });
+
+  if (error) {
+    showAuthError('biz-register-error', 'biz-register-error-msg', 'Error de conexión. Intentá de nuevo.');
+    return;
+  }
+  if (!data.success) {
     showAuthError('biz-register-error', 'biz-register-error-msg', 'Ya existe una cuenta con ese correo o celular. ¿Querés iniciar sesión?');
     return;
   }
-
-  const profile = { name, dni, phone, category, location, bio, address };
-  const salt = generateSalt();
-  const passwordHash = await hashPassword(password, salt);
-  users.push({ role: 'vendor', identifier, phone, salt, passwordHash, profile });
-  localStorage.setItem('dm_users', JSON.stringify(users));
-
-  // Guardar en lista de pendientes para aprobación del admin
-  const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
-  pending.push({ ...profile, identifier });
-  localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
 
   showWelcomeToast('¡Solicitud enviada! El administrador revisará tu cuenta 🕐');
   setTimeout(() => showScreen('login'), 2500);
@@ -531,7 +539,7 @@ function saveProduct() {
     id: editingProductIdx !== null ? myProducts[editingProductIdx].id : Date.now(),
     name, icon, price, time, desc,
     vendor: vendorProfile.name,
-    vendorIdentifier: vendorProfile.identifier,
+    vendorIdentifier: vendorProfile.id,
     categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
     image: window._pendingProductImage || null,
   };
@@ -542,7 +550,7 @@ function saveProduct() {
     myProducts.push(product);
   }
   editingProductIdx = null;
-  localStorage.setItem('dm_vendor_products_' + vendorProfile.identifier, JSON.stringify(myProducts));
+  localStorage.setItem('dm_vendor_products_' + vendorProfile.id, JSON.stringify(myProducts));
   document.getElementById('stat-products').textContent = myProducts.length;
   renderMyProducts();
   closeProductModal();
@@ -584,7 +592,7 @@ function renderMyProducts() {
 function deleteProduct(idx) {
   if (!confirm('¿Eliminar este producto?')) return;
   myProducts.splice(idx, 1);
-  localStorage.setItem('dm_vendor_products_' + vendorProfile.identifier, JSON.stringify(myProducts));
+  localStorage.setItem('dm_vendor_products_' + vendorProfile.id, JSON.stringify(myProducts));
   document.getElementById('stat-products').textContent = myProducts.length;
   renderMyProducts();
 }
@@ -701,7 +709,7 @@ function advanceOrderStatus(idx) {
   const savedVendor = localStorage.getItem('dm_vendor_profile');
   if (savedVendor) {
     vendorProfile = JSON.parse(savedVendor);
-    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + vendorProfile.identifier) || '[]');
+    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + vendorProfile.id) || '[]');
   }
   const savedConsumer = localStorage.getItem('dm_consumer_profile');
   if (savedConsumer) consumerProfile = JSON.parse(savedConsumer);
