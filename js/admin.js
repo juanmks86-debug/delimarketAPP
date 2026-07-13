@@ -45,10 +45,15 @@ async function getData() {
   const products = getAllVendorProducts();
   const orders   = JSON.parse(localStorage.getItem('dm_orders')  || '[]');
 
-  const { data: pendingRows } = await supabaseClient
-    .from('vendedores').select('*').eq('estado', 'pendiente');
-  const { data: approvedRows } = await supabaseClient
-    .from('vendedores').select('*').eq('estado', 'aprobado');
+  const VENDOR_COLUMNS = 'id, nombre_negocio, nombre_contacto, dni, email, telefono, categoria, ubicacion, bio, direccion, estado, created_at';
+
+  const { data: pendingRows, error: pendingError } = await supabaseClient
+    .from('vendedores').select(VENDOR_COLUMNS).eq('estado', 'pendiente');
+  const { data: approvedRows, error: approvedError } = await supabaseClient
+    .from('vendedores').select(VENDOR_COLUMNS).eq('estado', 'aprobado');
+
+  if (pendingError) console.error('Error cargando pendientes:', pendingError);
+  if (approvedError) console.error('Error cargando aprobados:', approvedError);
 
   const mapVendor = v => ({
     id: v.id, name: v.nombre_negocio, dni: v.dni, phone: v.telefono,
