@@ -145,14 +145,20 @@ function loadProducts() {
  */
 function buildCard(p) {
   const isFav = isFavorite(p.id);
+  const safeName = escapeHtml(p.name);
+  // Los onclick van con comillas dobles + JSON escapado (&quot;) en vez
+  // de comillas simples: un nombre de producto con un apóstrofe (ej.
+  // "Vino D'Elia") rompía el atributo con comillas simples y permitía
+  // inyectar HTML/JS. Mismo patrón que ya se usaba en add-btn.
+  const safeProductJson = JSON.stringify(p).replace(/"/g, '&quot;');
   const imgContent = p.image
-    ? `<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;">`
+    ? `<img src="${p.image}" alt="${safeName}" style="width:100%;height:100%;object-fit:cover;">`
     : `<i class="ti ${p.icon}" aria-hidden="true"></i>`;
   return `
-    <div class="product-card" onclick='showDetail(${JSON.stringify(p)})'>
+    <div class="product-card" onclick="showDetail(${safeProductJson})">
       <div class="product-img" style="position:relative">
         ${imgContent}
-        <button onclick='toggleFavorite(event, ${JSON.stringify(p)})' style="
+        <button onclick="event.stopPropagation();toggleFavorite(event, ${safeProductJson})" style="
           position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;
           background:rgba(255,255,255,0.9);border:none;cursor:pointer;
           display:flex;align-items:center;justify-content:center;
@@ -164,13 +170,13 @@ function buildCard(p) {
         <div class="delivery-badge">
           <i class="ti ti-clock" style="font-size:10px" aria-hidden="true"></i> ${p.time || '—'}
         </div>
-        <div class="product-name">${p.name}</div>
+        <div class="product-name">${safeName}</div>
         <div class="product-vendor">
-          <i class="ti ti-store" style="font-size:12px" aria-hidden="true"></i> ${p.vendor}
+          <i class="ti ti-store" style="font-size:12px" aria-hidden="true"></i> ${escapeHtml(p.vendor)}
         </div>
         <div class="product-bottom">
           <span class="product-price">$${Number(p.price).toLocaleString('es-AR')}</span>
-          <button class="add-btn" onclick="event.stopPropagation();addToCartDirect(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+          <button class="add-btn" onclick="event.stopPropagation();addToCartDirect(${safeProductJson})">
             <i class="ti ti-plus" aria-label="Agregar"></i>
           </button>
         </div>
@@ -203,11 +209,22 @@ function renderProducts(products) {
 //   NAVEGACIÓN (Router SPA)
 // =============================================
 
+let ordersRefreshInterval = null;
+
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   window.scrollTo(0, 0);
   if (name === 'cart') renderCart();
+
+  // "Mis pedidos": refrescar al entrar y cada pocos segundos mientras
+  // está abierta, para reflejar cambios de estado que haga el vendedor
+  // (ej. "Marcar en camino") sin tener que salir y volver a entrar.
+  clearInterval(ordersRefreshInterval);
+  if (name === 'orders') {
+    renderMyOrders();
+    ordersRefreshInterval = setInterval(renderMyOrders, 4000);
+  }
 }
 
 // =============================================
@@ -300,12 +317,12 @@ function renderCart() {
     <div class="cart-item">
       <div class="cart-item-img" style="${item.image ? 'overflow:hidden;border-radius:var(--border-radius-md)' : ''}">
         ${item.image
-          ? `<img src="${item.image}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;">`
+          ? `<img src="${item.image}" alt="${escapeHtml(item.name)}" style="width:100%;height:100%;object-fit:cover;">`
           : `<i class="ti ${item.icon}" aria-hidden="true"></i>`}
       </div>
       <div class="cart-item-info">
-        <div class="cart-item-name">${item.name}</div>
-        <div class="cart-item-vendor">${item.vendor}</div>
+        <div class="cart-item-name">${escapeHtml(item.name)}</div>
+        <div class="cart-item-vendor">${escapeHtml(item.vendor)}</div>
         <div class="cart-item-qty-row">
           <button class="cart-qty-btn" onclick="changeCartQty(${idx}, -1)">−</button>
           <div class="cart-qty-val">${item.qty}</div>
@@ -456,7 +473,7 @@ function openCheckout() {
   const itemsEl = document.getElementById('checkout-summary-items');
   itemsEl.innerHTML = cart.map(item => `
     <div class="checkout-item-row">
-      <span>${item.name} x${item.qty}</span>
+      <span>${escapeHtml(item.name)} x${item.qty}</span>
       <span>$${(item.price * item.qty).toLocaleString('es-AR')}</span>
     </div>
   `).join('');
@@ -602,7 +619,7 @@ function renderMyOrders() {
         <div class="order-card-items">
           ${order.items.map(i => `
             <div class="order-card-item">
-              <span><i class="ti ${i.icon}" style="font-size:12px"></i> ${i.name} x${i.qty}</span>
+              <span><i class="ti ${i.icon}" style="font-size:12px"></i> ${escapeHtml(i.name)} x${i.qty}</span>
               <span>$${(i.price * i.qty).toLocaleString('es-AR')}</span>
             </div>
           `).join('')}
@@ -614,6 +631,89 @@ function renderMyOrders() {
           </div>
           <div class="order-card-total">$${order.total.toLocaleString('es-AR')}</div>
         </div>
+
+        ${order.status === 'done' ? (
+          order.reviewed
+            ? `<div class="order-review-done"><i class="ti ti-star-filled"></i> Calificaste este pedido con ${order.reviewed.stars}★</div>`
+            : `<button class="order-review-btn" onclick="openReviewModal('${order.id}')"><i class="ti ti-star"></i> Calificar pedido</button>`
+        ) : ''}
       </div>`;
   }).join('');
+}
+
+// =============================================
+//   RESEÑAS / CALIFICACIÓN
+// =============================================
+let reviewOrderId = null;
+let reviewStarsSelected = 0;
+
+function openReviewModal(orderId) {
+  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
+  const order = allOrders.find(o => o.id === orderId);
+  if (!order) return;
+
+  reviewOrderId = orderId;
+  reviewStarsSelected = 0;
+  document.getElementById('review-vendor-name').textContent =
+    'Pedido ' + order.id + (order.items[0] ? ' · ' + order.items[0].vendor : '');
+  document.getElementById('review-comment').value = '';
+  updateReviewStarsUI();
+  document.getElementById('review-modal').classList.add('open');
+}
+
+function closeReviewModal() {
+  document.getElementById('review-modal').classList.remove('open');
+  reviewOrderId = null;
+}
+
+function closeReviewModalOutside(e) {
+  if (e.target === document.getElementById('review-modal')) closeReviewModal();
+}
+
+function setReviewStars(n) {
+  reviewStarsSelected = n;
+  updateReviewStarsUI();
+}
+
+function updateReviewStarsUI() {
+  document.querySelectorAll('#review-stars i').forEach(star => {
+    const val = Number(star.dataset.star);
+    star.className = 'ti ' + (val <= reviewStarsSelected ? 'ti-star-filled' : 'ti-star');
+  });
+}
+
+function submitReview() {
+  if (!reviewOrderId) return;
+  if (reviewStarsSelected === 0) {
+    showToast('Elegí al menos una estrella', 'ti-star');
+    return;
+  }
+
+  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
+  const order = allOrders.find(o => o.id === reviewOrderId);
+  if (!order) return;
+
+  const comment = document.getElementById('review-comment').value.trim();
+  const vendor  = order.items[0] ? order.items[0].vendor : 'Vendedor';
+
+  const review = {
+    orderId:  order.id,
+    vendor,
+    stars:    reviewStarsSelected,
+    comment,
+    consumer: order.consumer,
+    date:     new Date().toISOString(),
+  };
+
+  const allReviews = JSON.parse(localStorage.getItem('dm_reviews') || '[]');
+  allReviews.unshift(review);
+  localStorage.setItem('dm_reviews', JSON.stringify(allReviews));
+
+  // Marcar el pedido como ya calificado para no mostrar el botón de nuevo
+  order.reviewed = { stars: reviewStarsSelected };
+  localStorage.setItem('dm_orders', JSON.stringify(allOrders));
+
+  closeReviewModal();
+  showToast('¡Gracias por tu calificación! ⭐', 'ti-star-filled');
+  renderMyOrders();
 }

@@ -131,10 +131,10 @@ function renderDashboard(data) {
 
   if (!data.isDemo) {
     if (data.vendors.length > 0) {
-      activities.push({ color: 'orange', text: `<strong>${data.vendors[0].name}</strong> se registró como vendedor` });
+      activities.push({ color: 'orange', text: `<strong>${escapeHtml(data.vendors[0].name)}</strong> se registró como vendedor` });
     }
     if (data.consumers.length > 0) {
-      activities.push({ color: 'green', text: `<strong>${data.consumers[0].firstname} ${data.consumers[0].lastname}</strong> se registró como consumidor` });
+      activities.push({ color: 'green', text: `<strong>${escapeHtml(data.consumers[0].firstname)} ${escapeHtml(data.consumers[0].lastname)}</strong> se registró como consumidor` });
     }
     if (data.products.length > 0) {
       activities.push({ color: 'orange', text: `<strong>${data.vendors[0]?.name || 'Vendedor'}</strong> publicó ${data.products.length} producto(s)` });
@@ -185,9 +185,9 @@ function renderVendors(data) {
       <div class="admin-list-item" style="border-left:3px solid #E8920E">
         <div class="admin-item-avatar vendor"><i class="ti ti-store"></i></div>
         <div class="admin-item-info">
-          <div class="admin-item-name">${v.name}</div>
-          <div class="admin-item-detail">${CATEGORY_LABELS[v.category] || v.category} · ${v.location} · DNI ${v.dni}</div>
-          ${v.bio ? `<div class="admin-item-detail" style="font-style:italic">"${v.bio}"</div>` : ''}
+          <div class="admin-item-name">${escapeHtml(v.name)}</div>
+          <div class="admin-item-detail">${CATEGORY_LABELS[v.category] || v.category} · ${escapeHtml(v.location)} · DNI ${escapeHtml(v.dni)}</div>
+          ${v.bio ? `<div class="admin-item-detail" style="font-style:italic">"${escapeHtml(v.bio)}"</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
           <button onclick="approveVendor(${idx})" style="
@@ -215,7 +215,7 @@ function renderVendors(data) {
         <div class="admin-item-avatar vendor"><i class="ti ti-store"></i></div>
         <div class="admin-item-info">
           <div class="admin-item-name">
-            ${v.name}
+            ${escapeHtml(v.name)}
             <span style="font-size:10px;background:#E1F5EE;color:#0F6E56;padding:2px 8px;border-radius:999px;margin-left:6px;font-weight:500">
               <i class="ti ti-circle-check" style="font-size:11px"></i> Aprobado
             </span>
@@ -285,9 +285,9 @@ function renderAdminProducts(data) {
     <div class="admin-list-item" id="admin-product-${idx}">
       <div class="admin-item-avatar product"><i class="ti ${p.icon}"></i></div>
       <div class="admin-item-info">
-        <div class="admin-item-name">${p.name}</div>
+        <div class="admin-item-name">${escapeHtml(p.name)}</div>
         <div class="admin-item-detail">
-          <i class="ti ti-store" style="font-size:12px"></i> ${p.vendor}
+          <i class="ti ti-store" style="font-size:12px"></i> ${escapeHtml(p.vendor)}
           ${p.time ? ` · <i class="ti ti-clock" style="font-size:11px"></i> ${p.time}` : ''}
         </div>
       </div>

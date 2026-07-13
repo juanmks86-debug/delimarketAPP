@@ -7,6 +7,41 @@
 // =============================================
 
 // =============================================
+//   ESCAPE DE TEXTO (seguridad)
+//   Se usa en main.js, vendedor.js y admin.js antes de
+//   insertar cualquier texto ingresado por un usuario
+//   (nombre de producto, de vendedor, etc.) dentro de
+//   innerHTML, para que no se pueda inyectar HTML/JS.
+//   Va acá porque temas.js es el único script que cargan
+//   las 3 páginas (index, vendedor y admin).
+// =============================================
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[ch]));
+}
+
+// =============================================
+//   RESEÑAS / CALIFICACIÓN
+//   Se guardan en localStorage (dm_reviews) como
+//   { orderId, vendor, stars, comment, consumer, date }.
+//   Ojo: al no haber backend, cada dispositivo tiene su
+//   propia lista — un vendedor solo ve en su celular las
+//   reseñas que se hayan guardado en ESE mismo navegador.
+// =============================================
+function getVendorReviews(vendorName) {
+  const all = JSON.parse(localStorage.getItem('dm_reviews') || '[]');
+  return all.filter(r => r.vendor === vendorName);
+}
+
+function getVendorRatingStats(vendorName) {
+  const reviews = getVendorReviews(vendorName);
+  if (reviews.length === 0) return { avg: null, count: 0 };
+  const avg = reviews.reduce((sum, r) => sum + r.stars, 0) / reviews.length;
+  return { avg: Math.round(avg * 10) / 10, count: reviews.length };
+}
+
+// =============================================
 //   DEFINICIÓN DE TEMAS
 // =============================================
 

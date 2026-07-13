@@ -415,6 +415,15 @@ function loadVendorPanel() {
   document.getElementById('profile-location').textContent = vendorProfile.location;
   document.getElementById('profile-address').textContent = vendorProfile.address || '—';
   document.getElementById('stat-products').textContent = myProducts.length;
+
+  const ratingStats = getVendorRatingStats(vendorProfile.name);
+  document.getElementById('stat-rating-value').textContent =
+    ratingStats.avg !== null ? ratingStats.avg.toFixed(1) + ' ★' : '—';
+  document.getElementById('stat-rating-sub').textContent =
+    ratingStats.count > 0
+      ? ratingStats.count + (ratingStats.count === 1 ? ' reseña' : ' reseñas')
+      : 'Sin reseñas aún';
+
   renderMyProducts();
 }
 
@@ -553,11 +562,11 @@ function renderMyProducts() {
     <div class="my-product-item">
       <div class="my-product-img">
         ${p.image
-          ? `<img src="${p.image}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--border-radius-md)">`
+          ? `<img src="${p.image}" alt="${escapeHtml(p.name)}" style="width:100%;height:100%;object-fit:cover;border-radius:var(--border-radius-md)">`
           : `<i class="ti ${p.icon}" aria-hidden="true"></i>`}
       </div>
       <div class="my-product-info">
-        <div class="my-product-name">${p.name}</div>
+        <div class="my-product-name">${escapeHtml(p.name)}</div>
         <div class="my-product-price">$${p.price.toLocaleString('es-AR')} · ${p.categoryLabel}</div>
       </div>
       <div class="my-product-actions">
@@ -634,7 +643,7 @@ function renderVendorOrders() {
         <div class="order-card-items" style="margin:10px 0">
           ${myItems.map(i => `
             <div class="order-card-item">
-              <span><i class="ti ${i.icon}" style="font-size:11px"></i> ${i.name} x${i.qty}</span>
+              <span><i class="ti ${i.icon}" style="font-size:11px"></i> ${escapeHtml(i.name)} x${i.qty}</span>
               <span>$${(i.price * i.qty).toLocaleString('es-AR')}</span>
             </div>
           `).join('')}

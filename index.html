@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DeliMarket</title>
+  <title>DeliMarket — Productos locales con delivery</title>
+  <meta name="description" content="Comprá productos de productores y comercios locales, con delivery directo a tu puerta. Sumate como consumidor o vendedor en DeliMarket.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="DeliMarket — Productos locales con delivery">
+  <meta property="og:description" content="Comprá productos de productores y comercios locales, con delivery directo a tu puerta.">
+  <meta property="og:image" content="https://delimarket-app.vercel.app/og-image.png">
+  <meta property="og:url" content="https://delimarket-app.vercel.app">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
   <link rel="stylesheet" href="css/estilos.css">
   <link rel="stylesheet" href="css/estilos-vendedor.css">
@@ -224,6 +232,31 @@
       </button>
     </div>
 
+  </div>
+
+  <!-- ===================== MODAL: CALIFICAR PEDIDO ===================== -->
+  <div class="modal-overlay" id="review-modal" onclick="closeReviewModalOutside(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">¿Cómo estuvo tu pedido?</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px" id="review-vendor-name"></div>
+
+      <div class="review-stars" id="review-stars">
+        <i class="ti ti-star" data-star="1" onclick="setReviewStars(1)"></i>
+        <i class="ti ti-star" data-star="2" onclick="setReviewStars(2)"></i>
+        <i class="ti ti-star" data-star="3" onclick="setReviewStars(3)"></i>
+        <i class="ti ti-star" data-star="4" onclick="setReviewStars(4)"></i>
+        <i class="ti ti-star" data-star="5" onclick="setReviewStars(5)"></i>
+      </div>
+
+      <textarea id="review-comment" class="review-comment-input" rows="3"
+        placeholder="Contanos tu experiencia (opcional)"></textarea>
+
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeReviewModal()">Cancelar</button>
+        <button class="btn-primary-full" onclick="submitReview()">Enviar calificación</button>
+      </div>
+    </div>
   </div>
 
   <!-- ===================== MODAL: CONFIRMAR PEDIDO ===================== -->
