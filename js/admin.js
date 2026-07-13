@@ -38,33 +38,39 @@ function getAllVendorProducts() {
   return all;
 }
 
-function getData() {
-  // dm_users guarda TODAS las cuentas registradas (vendedores y consumidores),
-  // cada una con su "identifier" (correo/celular) único.
-  const users    = JSON.parse(localStorage.getItem('dm_users')          || '[]');
+async function getData() {
+  // dm_users sigue guardando SOLO los consumidores (los vendedores ya
+  // viven en la tabla `vendedores` de Supabase, migrados en el paso anterior).
+  const users    = JSON.parse(localStorage.getItem('dm_users') || '[]');
   const products = getAllVendorProducts();
-  const orders   = JSON.parse(localStorage.getItem('dm_orders')           || '[]');
+  const orders   = JSON.parse(localStorage.getItem('dm_orders')  || '[]');
 
-  // Pendientes de aprobación
-  const pending  = JSON.parse(localStorage.getItem('dm_vendors_pending')  || '[]');
-  const pendingIds = new Set(pending.map(p => p.identifier));
+  const { data: pendingRows } = await supabaseClient
+    .from('vendedores').select('*').eq('estado', 'pendiente');
+  const { data: approvedRows } = await supabaseClient
+    .from('vendedores').select('*').eq('estado', 'aprobado');
 
-  const vendors = users
-    .filter(u => u.role === 'vendor' && !pendingIds.has(u.identifier))
-    .map(u => ({ ...u.profile, identifier: u.identifier }));
+  const mapVendor = v => ({
+    id: v.id, name: v.nombre_negocio, dni: v.dni, phone: v.telefono,
+    category: v.categoria, location: v.ubicacion, bio: v.bio,
+    address: v.direccion, identifier: v.email,
+  });
+
+  const pending = (pendingRows || []).map(mapVendor);
+  const vendors = (approvedRows || []).map(mapVendor);
 
   const consumers = users
     .filter(u => u.role === 'consumer')
     .map(u => ({ ...u.profile, identifier: u.identifier }));
 
-  const noRealData = users.length === 0 && pending.length === 0;
+  const noRealData = vendors.length === 0 && pending.length === 0 && consumers.length === 0;
 
   return {
     vendors:   noRealData ? [DEMO_VENDOR]   : vendors,
     consumers: noRealData ? [DEMO_CONSUMER] : consumers,
     products:  products.length > 0 ? products : (noRealData ? DEMO_PRODUCTS : []),
     orders,
-    pending,
+    pending: noRealData ? [] : pending,
     isDemo:    noRealData,
   };
 }
@@ -181,7 +187,7 @@ function renderVendors(data) {
       <i class="ti ti-clock" style="color:#E8920E;font-size:15px"></i>
       Pendientes de aprobación (${data.pending.length})
     </div>`;
-    html += data.pending.map((v, idx) => `
+    html += data.pending.map((v) => `
       <div class="admin-list-item" style="border-left:3px solid #E8920E">
         <div class="admin-item-avatar vendor"><i class="ti ti-store"></i></div>
         <div class="admin-item-info">
@@ -190,13 +196,13 @@ function renderVendors(data) {
           ${v.bio ? `<div class="admin-item-detail" style="font-style:italic">"${escapeHtml(v.bio)}"</div>` : ''}
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0">
-          <button onclick="approveVendor(${idx})" style="
+          <button onclick="approveVendor('${v.id}')" style="
             padding:6px 12px;background:#1D9E75;color:#fff;border:none;border-radius:8px;
             font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;
             display:flex;align-items:center;gap:4px">
             <i class="ti ti-check" style="font-size:14px"></i> Aprobar
           </button>
-          <button onclick="rejectVendor(${idx})" style="
+          <button onclick="rejectVendor('${v.id}')" style="
             padding:6px 12px;background:#FAECE7;color:#D85A30;border:none;border-radius:8px;
             font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;
             display:flex;align-items:center;gap:4px">
@@ -224,7 +230,7 @@ function renderVendors(data) {
           ${v.bio ? `<div class="admin-item-detail" style="font-style:italic">"${v.bio}"</div>` : ''}
         </div>
         ${!data.isDemo ? `
-          <button class="admin-delete-btn" data-id="${v.identifier}" onclick="deleteVendor(this.dataset.id)" aria-label="Eliminar vendedor">
+          <button class="admin-delete-btn" data-id="${v.id}" onclick="deleteVendor(this.dataset.id)" aria-label="Eliminar vendedor">
             <i class="ti ti-trash" style="font-size:16px"></i>
           </button>` : ''}
       </div>`).join('');
@@ -304,57 +310,36 @@ function renderAdminProducts(data) {
 //   ACCIONES DE ADMINISTRADOR
 // =============================================
 
-function approveVendor(idx) {
-  // La cuenta ya está guardada en dm_users desde el registro;
-  // aprobar solo significa sacarla de la lista de pendientes.
-  const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
-  const vendor  = pending.splice(idx, 1)[0];
-  if (!vendor) return;
-  localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
-  showAdminToast(`✅ ${vendor.name} aprobado`);
+async function approveVendor(id) {
+  const { error } = await supabaseClient
+    .from('vendedores').update({ estado: 'aprobado' }).eq('id', id);
+  if (error) { showAdminToast('❌ Error al aprobar'); return; }
+  showAdminToast('✅ Vendedor aprobado');
   init();
 }
 
-function rejectVendor(idx) {
+async function rejectVendor(id) {
   if (!confirm('¿Rechazar y eliminar esta solicitud?')) return;
-  const pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
-  const vendor  = pending.splice(idx, 1)[0];
-  localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
-
-  // También eliminamos la cuenta creada en dm_users, ya que fue rechazada
-  if (vendor && vendor.identifier) {
-    let users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-    users = users.filter(u => !(u.role === 'vendor' && u.identifier === vendor.identifier));
-    localStorage.setItem('dm_users', JSON.stringify(users));
-  }
-
-  showAdminToast(`❌ Solicitud de ${vendor?.name} rechazada`);
+  const { error } = await supabaseClient.from('vendedores').delete().eq('id', id);
+  if (error) { showAdminToast('❌ Error al rechazar'); return; }
+  showAdminToast('❌ Solicitud rechazada');
   init();
 }
 
-function deleteVendor(identifier) {
-  if (!identifier) return;
+async function deleteVendor(id) {
+  if (!id) return;
   if (!confirm('¿Eliminar este vendedor y todos sus productos?')) return;
 
-  let users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-  const target = users.find(u => u.role === 'vendor' && u.identifier === identifier);
-  users = users.filter(u => !(u.role === 'vendor' && u.identifier === identifier));
-  localStorage.setItem('dm_users', JSON.stringify(users));
+  const { error } = await supabaseClient.from('vendedores').delete().eq('id', id);
+  if (error) { showAdminToast('❌ Error al eliminar'); return; }
 
-  // Por si había quedado una solicitud pendiente con ese identificador
-  let pending = JSON.parse(localStorage.getItem('dm_vendors_pending') || '[]');
-  pending = pending.filter(p => p.identifier !== identifier);
-  localStorage.setItem('dm_vendors_pending', JSON.stringify(pending));
+  // Borrar sus productos publicados localmente (hasta que se migren a Supabase)
+  localStorage.removeItem('dm_vendor_products_' + id);
 
-  if (target) {
-    // Borrar sus productos publicados (clave propia por identificador)
-    localStorage.removeItem('dm_vendor_products_' + identifier);
-
-    // Si este vendedor tenía la sesión activa en este navegador, cerrarla también
-    const activeVendor = JSON.parse(localStorage.getItem('dm_vendor_profile') || 'null');
-    if (activeVendor && activeVendor.identifier === identifier) {
-      localStorage.removeItem('dm_vendor_profile');
-    }
+  // Si este vendedor tenía la sesión activa en este navegador, cerrarla también
+  const activeVendor = JSON.parse(localStorage.getItem('dm_vendor_profile') || 'null');
+  if (activeVendor && activeVendor.id === id) {
+    localStorage.removeItem('dm_vendor_profile');
   }
 
   showAdminToast('🗑️ Vendedor eliminado');
@@ -400,8 +385,8 @@ function deleteAdminProduct(idx) {
 //   INIT
 // =============================================
 
-function init() {
-  const data = getData();
+async function init() {
+  const data = await getData();
   renderDashboard(data);
   renderVendors(data);
   renderConsumers(data);
