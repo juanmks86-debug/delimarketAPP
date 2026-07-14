@@ -728,17 +728,34 @@ const STATUS_NEXT = {
   done:     null,
 };
 
-function renderVendorOrders() {
-  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
-  // Solo mostrar pedidos que contienen productos de este vendedor
-  const myOrders = vendorProfile
-    ? allOrders.filter(order =>
-        order.items.some(i => i.vendor === vendorProfile.name)
-      )
-    : allOrders;
-
+async function renderVendorOrders() {
   const list = document.getElementById('vendor-orders-list');
-  if (!list) return;
+  if (!list || !vendorProfile) return;
+
+  const { data, error } = await supabaseClient
+    .from('pedidos')
+    .select('id, consumidor_nombre, telefono, direccion, items, estado, created_at')
+    .contains('vendedor_ids', [vendorProfile.id])
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('No se pudieron cargar tus pedidos desde Supabase:', error);
+    list.innerHTML = `
+      <div style="padding:40px 0;text-align:center;color:var(--color-text-tertiary);font-size:13px;">
+        No se pudieron cargar los pedidos. Intentá de nuevo.
+      </div>`;
+    return;
+  }
+
+  const myOrders = (data || []).map(o => ({
+    id: o.id,
+    date: new Date(o.created_at).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+    consumer: o.consumidor_nombre,
+    phone: o.telefono,
+    address: o.direccion,
+    items: o.items,
+    status: o.estado,
+  }));
 
   if (myOrders.length === 0) {
     list.innerHTML = `
@@ -749,12 +766,10 @@ function renderVendorOrders() {
     return;
   }
 
-  list.innerHTML = myOrders.map((order, idx) => {
-    // Índice real en allOrders para poder actualizar estado
-    const realIdx = allOrders.findIndex(o => o.id === order.id);
+  list.innerHTML = myOrders.map(order => {
     const next = STATUS_NEXT[order.status];
-    // Solo mostrar items de este vendedor
-    const myItems = order.items.filter(i => i.vendor === vendorProfile?.name);
+    // Solo mostrar items de este vendedor (el pedido puede incluir otros)
+    const myItems = order.items.filter(i => i.vendedor_id === vendorProfile.id);
     return `
       <div class="order-card" style="margin-bottom:12px">
         <div class="order-card-header">
@@ -784,7 +799,7 @@ function renderVendorOrders() {
           <div class="order-card-total">$${myItems.reduce((s,i) => s + i.price*i.qty, 0).toLocaleString('es-AR')}</div>
         </div>
         ${next ? `
-          <button onclick="advanceOrderStatus(${realIdx})" style="
+          <button onclick="advanceOrderStatus('${order.id}')" style="
             width:100%;margin-top:12px;padding:10px;background:#1D9E75;color:#fff;border:none;
             border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;
             display:flex;align-items:center;justify-content:center;gap:8px;">
@@ -813,12 +828,22 @@ function doLogout() {
   window.location.href = 'index.html';
 }
 
-function advanceOrderStatus(idx) {
-  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
-  const next = STATUS_NEXT[allOrders[idx].status];
-  if (!next) return;
-  allOrders[idx].status = next.next;
-  localStorage.setItem('dm_orders', JSON.stringify(allOrders));
+async function advanceOrderStatus(id) {
+  // Necesitamos el estado actual del pedido para saber cuál es el siguiente
+  const { data: order, error: fetchError } = await supabaseClient
+    .from('pedidos').select('estado').eq('id', id).single();
+  if (fetchError || !order) return;
+
+  const nextStep = STATUS_NEXT[order.estado];
+  if (!nextStep) return;
+
+  const { error } = await supabaseClient
+    .from('pedidos').update({ estado: nextStep.next }).eq('id', id);
+  if (error) {
+    console.error('No se pudo actualizar el estado del pedido:', error);
+    return;
+  }
+
   renderVendorOrders();
 }
 
@@ -840,4 +865,4 @@ function advanceOrderStatus(idx) {
     if (btn) selectRole(btn);
   }
   initDarkMode();
-})();S
+})();

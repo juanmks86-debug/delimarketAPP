@@ -22,8 +22,6 @@ const DEMO_PRODUCTS = [
 // =============================================
 
 async function getData() {
-  const orders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
-
   const VENDOR_COLUMNS = 'id, nombre_negocio, nombre_contacto, dni, email, telefono, categoria, ubicacion, bio, direccion, estado, created_at';
   const CLIENTE_COLUMNS = 'id, nombre, apellido, dni, email, telefono, ubicacion, direccion, created_at';
   const PRODUCTO_COLUMNS = 'id, nombre, precio, tiempo_preparacion, categoria, vendedores(nombre_negocio)';
@@ -36,11 +34,14 @@ async function getData() {
     .from('clientes').select(CLIENTE_COLUMNS).order('created_at', { ascending: false });
   const { data: productoRows, error: productoError } = await supabaseClient
     .from('productos').select(PRODUCTO_COLUMNS).order('created_at', { ascending: false });
+  const { data: pedidoRows, error: pedidoError } = await supabaseClient
+    .from('pedidos').select('id').order('created_at', { ascending: false });
 
   if (pendingError) console.error('Error cargando pendientes:', pendingError);
   if (approvedError) console.error('Error cargando aprobados:', approvedError);
   if (clienteError) console.error('Error cargando consumidores:', clienteError);
   if (productoError) console.error('Error cargando productos:', productoError);
+  if (pedidoError) console.error('Error cargando pedidos:', pedidoError);
 
   const mapVendor = v => ({
     id: v.id, name: v.nombre_negocio, dni: v.dni, phone: v.telefono,
@@ -68,7 +69,7 @@ async function getData() {
     vendors:   noRealData ? [DEMO_VENDOR]   : vendors,
     consumers: noRealData ? [DEMO_CONSUMER] : consumers,
     products:  products.length > 0 ? products : (noRealData ? DEMO_PRODUCTS : []),
-    orders,
+    orders: pedidoRows || [],
     pending: noRealData ? [] : pending,
     isDemo:    noRealData,
   };

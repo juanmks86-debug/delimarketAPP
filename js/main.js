@@ -123,7 +123,7 @@ async function loadProducts() {
   try {
     const { data, error } = await supabaseClient
       .from('productos')
-      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, vendedores(nombre_negocio)')
+      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, vendedor_id, vendedores(nombre_negocio)')
       .eq('activo', true)
       .order('created_at', { ascending: false });
 
@@ -135,6 +135,7 @@ async function loadProducts() {
       id: p.id,
       name: p.nombre,
       vendor: p.vendedores?.nombre_negocio || 'Vendedor',
+      vendedorId: p.vendedor_id,
       price: p.precio,
       time: p.tiempo_preparacion || '—',
       desc: p.descripcion || '',
@@ -513,16 +514,17 @@ function closeCheckoutOutside(e) {
 }
 
 // ----- CONFIRMAR PEDIDO -----
-function confirmOrder() {
+async function confirmOrder() {
   if (cart.length === 0) return;
 
   const profile = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
   const total   = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const vendedorIds = [...new Set(cart.map(i => i.vendedorId).filter(Boolean))];
 
   const order = {
     id:       'PED-' + Date.now().toString().slice(-6),
     date:     new Date().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
-    items:    cart.map(i => ({ name: i.name, qty: i.qty, price: i.price, icon: i.icon, vendor: i.vendor })),
+    items:    cart.map(i => ({ name: i.name, qty: i.qty, price: i.price, icon: i.icon, vendor: i.vendor, vendedor_id: i.vendedorId || null })),
     total,
     status:   'pending',
     consumer: profile ? `${profile.firstname} ${profile.lastname}` : 'Invitado',
@@ -530,10 +532,29 @@ function confirmOrder() {
     phone:    profile ? profile.phone : '—',
   };
 
-  // Guardar en pedidos globales (los ve el vendedor y admin)
-  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
-  allOrders.unshift(order);
-  localStorage.setItem('dm_orders', JSON.stringify(allOrders));
+  const confirmBtn = document.getElementById('checkout-confirm-btn');
+  if (confirmBtn) confirmBtn.disabled = true;
+
+  // Guardar en Supabase (lo ven el vendedor y el admin desde cualquier navegador)
+  const { error } = await supabaseClient.from('pedidos').insert({
+    id: order.id,
+    cliente_id: profile ? profile.id : null,
+    consumidor_nombre: order.consumer,
+    direccion: order.address,
+    telefono: order.phone,
+    items: order.items,
+    vendedor_ids: vendedorIds,
+    total: order.total,
+    estado: order.status,
+  });
+
+  if (confirmBtn) confirmBtn.disabled = false;
+
+  if (error) {
+    console.error('No se pudo guardar el pedido en Supabase:', error);
+    showToast('No se pudo confirmar el pedido. Intentá de nuevo.', 'ti-alert-circle');
+    return;
+  }
 
   // Limpiar carrito
   cart = [];
@@ -554,40 +575,84 @@ function confirmOrder() {
 }
 
 // ----- WHATSAPP AL VENDEDOR -----
-function sendWhatsAppNotification(order) {
-  // Obtener teléfono del vendedor registrado
-  const vendorProfile = JSON.parse(localStorage.getItem('dm_vendor_profile') || 'null');
-  const vendorPhone = vendorProfile?.phone;
+async function sendWhatsAppNotification(order) {
+  const vendedorIds = [...new Set(order.items.map(i => i.vendedor_id).filter(Boolean))];
+  if (vendedorIds.length === 0) return;
 
-  if (!vendorPhone) return; // sin teléfono no se puede enviar
+  const { data, error } = await supabaseClient
+    .from('vendedores')
+    .select('id, telefono')
+    .in('id', vendedorIds);
+  if (error || !data) return;
 
-  // Limpiar número: solo dígitos, agregar código Argentina si no tiene
-  let phone = vendorPhone.replace(/\D/g, '');
-  if (phone.startsWith('0')) phone = phone.slice(1);
-  if (!phone.startsWith('54')) phone = '54' + phone;
+  // Si el pedido tiene productos de varios vendedores, se manda un WhatsApp
+  // por cada uno, solo con lo que le corresponde a él.
+  data.forEach(v => {
+    if (!v.telefono) return; // sin teléfono no se puede enviar
 
-  // Armar mensaje
-  const itemsText = order.items
-    .map(i => `• ${i.name} x${i.qty} — $${(i.price * i.qty).toLocaleString('es-AR')}`)
-    .join('\n');
+    // Limpiar número: solo dígitos, agregar código Argentina si no tiene
+    let phone = v.telefono.replace(/\D/g, '');
+    if (phone.startsWith('0')) phone = phone.slice(1);
+    if (!phone.startsWith('54')) phone = '54' + phone;
 
-  const msg = encodeURIComponent(
-    `🛒 *Nuevo pedido ${order.id}*\n\n` +
-    `👤 Cliente: ${order.consumer}\n` +
-    `📍 Dirección: ${order.address}\n` +
-    `📞 Teléfono: ${order.phone}\n\n` +
-    `📦 Productos:\n${itemsText}\n\n` +
-    `💰 *Total: $${order.total.toLocaleString('es-AR')}*`
-  );
+    const myItems = order.items.filter(i => i.vendedor_id === v.id);
+    const itemsText = myItems
+      .map(i => `• ${i.name} x${i.qty} — $${(i.price * i.qty).toLocaleString('es-AR')}`)
+      .join('\n');
+    const myTotal = myItems.reduce((s, i) => s + i.price * i.qty, 0);
 
-  // Abrir WhatsApp en nueva pestaña
-  window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+    const msg = encodeURIComponent(
+      `🛒 *Nuevo pedido ${order.id}*\n\n` +
+      `👤 Cliente: ${order.consumer}\n` +
+      `📍 Dirección: ${order.address}\n` +
+      `📞 Teléfono: ${order.phone}\n\n` +
+      `📦 Productos:\n${itemsText}\n\n` +
+      `💰 *Total: $${myTotal.toLocaleString('es-AR')}*`
+    );
+
+    // Abrir WhatsApp en nueva pestaña
+    window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+  });
 }
 
 // ----- MIS PEDIDOS (vista consumidor) -----
-function renderMyOrders() {
-  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
+async function renderMyOrders() {
   const body = document.getElementById('my-orders-body');
+  const profile = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
+
+  if (!profile) {
+    body.innerHTML = `
+      <div style="padding:48px 16px;text-align:center;color:var(--color-text-tertiary)">
+        <i class="ti ti-login" style="font-size:48px;display:block;margin-bottom:12px"></i>
+        <p style="font-size:14px">Iniciá sesión para ver tus pedidos.</p>
+      </div>`;
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from('pedidos')
+    .select('id, direccion, items, total, estado, calificado_stars, created_at')
+    .eq('cliente_id', profile.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('No se pudieron cargar tus pedidos desde Supabase:', error);
+    body.innerHTML = `
+      <div style="padding:48px 16px;text-align:center;color:var(--color-text-tertiary)">
+        <p style="font-size:14px">No se pudieron cargar tus pedidos. Intentá de nuevo.</p>
+      </div>`;
+    return;
+  }
+
+  const allOrders = (data || []).map(o => ({
+    id: o.id,
+    date: new Date(o.created_at).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }),
+    items: o.items,
+    total: o.total,
+    status: o.estado,
+    address: o.direccion,
+    reviewed: o.calificado_stars ? { stars: o.calificado_stars } : null,
+  }));
 
   if (allOrders.length === 0) {
     body.innerHTML = `
@@ -661,10 +726,13 @@ function renderMyOrders() {
 let reviewOrderId = null;
 let reviewStarsSelected = 0;
 
-function openReviewModal(orderId) {
-  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
-  const order = allOrders.find(o => o.id === orderId);
-  if (!order) return;
+async function openReviewModal(orderId) {
+  const { data: order, error } = await supabaseClient
+    .from('pedidos')
+    .select('id, items')
+    .eq('id', orderId)
+    .single();
+  if (error || !order) return;
 
   reviewOrderId = orderId;
   reviewStarsSelected = 0;
@@ -696,26 +764,32 @@ function updateReviewStarsUI() {
   });
 }
 
-function submitReview() {
+async function submitReview() {
   if (!reviewOrderId) return;
   if (reviewStarsSelected === 0) {
     showToast('Elegí al menos una estrella', 'ti-star');
     return;
   }
 
-  const allOrders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
-  const order = allOrders.find(o => o.id === reviewOrderId);
-  if (!order) return;
+  const { data: order, error: fetchError } = await supabaseClient
+    .from('pedidos')
+    .select('id, items, consumidor_nombre')
+    .eq('id', reviewOrderId)
+    .single();
+  if (fetchError || !order) return;
 
   const comment = document.getElementById('review-comment').value.trim();
   const vendor  = order.items[0] ? order.items[0].vendor : 'Vendedor';
 
+  // El listado de reseñas públicas todavía vive en localStorage
+  // (se migra en un próximo paso); lo que sí queda en Supabase es
+  // la marca de "ya calificado" en el pedido.
   const review = {
     orderId:  order.id,
     vendor,
     stars:    reviewStarsSelected,
     comment,
-    consumer: order.consumer,
+    consumer: order.consumidor_nombre,
     date:     new Date().toISOString(),
   };
 
@@ -723,9 +797,13 @@ function submitReview() {
   allReviews.unshift(review);
   localStorage.setItem('dm_reviews', JSON.stringify(allReviews));
 
-  // Marcar el pedido como ya calificado para no mostrar el botón de nuevo
-  order.reviewed = { stars: reviewStarsSelected };
-  localStorage.setItem('dm_orders', JSON.stringify(allOrders));
+  const { error: updateError } = await supabaseClient
+    .from('pedidos')
+    .update({ calificado_stars: reviewStarsSelected })
+    .eq('id', reviewOrderId);
+  if (updateError) {
+    console.error('No se pudo marcar el pedido como calificado:', updateError);
+  }
 
   closeReviewModal();
   showToast('¡Gracias por tu calificación! ⭐', 'ti-star-filled');
