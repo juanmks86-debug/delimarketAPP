@@ -155,7 +155,7 @@ function renderDashboard(data) {
     }
   }
 
-  const banners = getBanners();
+  const banners = bannersCache;
   if (banners.length > 0) {
     activities.push({ color: 'green', text: `<strong>${banners.length} banner(s)</strong> publicitario(s) activo(s)` });
   }
@@ -391,6 +391,7 @@ function deleteAdminProduct(idx) {
 
 async function init() {
   const data = await getData();
+  await refreshBanners();
   renderDashboard(data);
   renderVendors(data);
   renderConsumers(data);
