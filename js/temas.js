@@ -1,9 +1,10 @@
 // =============================================
 //   temas.js — Temas estacionales (admin activa)
 //              + Modo nocturno (vendedor/consumidor)
+//   El tema activo vive en Supabase (tabla ajustes_sitio),
+//   así todos los visitantes ven el mismo tema.
 //   localStorage keys:
-//     dm_tema_activo   → string (id del tema o 'ninguno')
-//     dm_dark_mode     → '1' | '0'
+//     dm_dark_mode     → '1' | '0'  (preferencia de este navegador)
 // =============================================
 
 // =============================================
@@ -207,9 +208,20 @@ function applyTema(temaId) {
   if (tema.particles) startParticles(tema.particles);
 }
 
-function initIndexTema() {
-  const saved = localStorage.getItem('dm_tema_activo') || 'ninguno';
-  applyTema(saved);
+async function initIndexTema() {
+  const { data, error } = await supabaseClient
+    .from('ajustes_sitio')
+    .select('tema_activo')
+    .eq('id', 1)
+    .single();
+
+  if (error) {
+    console.error('No se pudo cargar el tema activo desde Supabase:', error);
+    applyTema('ninguno');
+    return;
+  }
+
+  applyTema(data?.tema_activo || 'ninguno');
 }
 
 // =============================================
@@ -466,11 +478,18 @@ function updateDarkToggleUI() {
 //   ADMIN: PANEL DE TEMAS
 // =============================================
 
-function initAdminTemas() {
+async function initAdminTemas() {
   const container = document.getElementById('admin-temas-grid');
   if (!container) return;
 
-  const current = localStorage.getItem('dm_tema_activo') || 'ninguno';
+  const { data, error } = await supabaseClient
+    .from('ajustes_sitio')
+    .select('tema_activo')
+    .eq('id', 1)
+    .single();
+  if (error) console.error('No se pudo cargar el tema activo desde Supabase:', error);
+
+  const current = data?.tema_activo || 'ninguno';
 
   container.innerHTML = Object.entries(TEMAS).map(([id, t]) => `
     <div class="admin-tema-card ${current === id ? 'active' : ''}" onclick="setTema('${id}', this)">
@@ -484,8 +503,17 @@ function initAdminTemas() {
   `).join('');
 }
 
-function setTema(id, el) {
-  localStorage.setItem('dm_tema_activo', id);
+async function setTema(id, el) {
+  const { error } = await supabaseClient
+    .from('ajustes_sitio')
+    .update({ tema_activo: id, updated_at: new Date().toISOString() })
+    .eq('id', 1);
+
+  if (error) {
+    console.error('No se pudo guardar el tema activo en Supabase:', error);
+    showAdminToast('❌ No se pudo activar el tema. Intentá de nuevo.');
+    return;
+  }
 
   // Actualizar UI
   document.querySelectorAll('.admin-tema-card').forEach(c => {
@@ -493,7 +521,6 @@ function setTema(id, el) {
     c.querySelector('.admin-tema-active-badge')?.remove();
   });
   el.classList.add('active');
-  const label = el.querySelector('.admin-tema-label');
   const badge = document.createElement('div');
   badge.className = 'admin-tema-active-badge';
   badge.innerHTML = '<i class="ti ti-check"></i> Activo';
