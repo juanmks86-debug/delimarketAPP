@@ -197,20 +197,27 @@ async function doLogin() {
   const role = sessionStorage.getItem('dm_pending_role') || 'consumer';
 
   if (role === 'consumer') {
-    const users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-    const user  = users.find(u => u.role === 'consumer' && (u.identifier === identifier || u.phone === identifier));
-    if (!user) {
-      showAuthError('login-error', 'login-error-msg', 'No encontramos una cuenta con ese correo o celular. ¿Querés registrarte?');
+    const { data, error } = await supabaseClient.rpc('login_cliente', {
+      p_identifier: identifier,
+      p_password: password,
+    });
+
+    if (error) {
+      showAuthError('login-error', 'login-error-msg', 'Error de conexión. Intentá de nuevo.');
       return;
     }
-    const hash = await hashPassword(password, user.salt);
-    if (hash !== user.passwordHash) {
-      showAuthError('login-error', 'login-error-msg', 'Contraseña incorrecta. Intentá de nuevo.');
+    if (!data.success) {
+      const mensajes = {
+        no_existe: 'No encontramos una cuenta con ese correo o celular. ¿Querés registrarte?',
+        password_incorrecta: 'Contraseña incorrecta. Intentá de nuevo.',
+      };
+      showAuthError('login-error', 'login-error-msg', mensajes[data.error] || 'No se pudo iniciar sesión.');
       return;
     }
-    consumerProfile = user.profile;
-    localStorage.setItem('dm_consumer_profile', JSON.stringify(user.profile));
-    showWelcomeToast('¡Bienvenido/a de nuevo, ' + user.profile.firstname + '!');
+
+    consumerProfile = { ...data.perfil, identifier: data.perfil.email };
+    localStorage.setItem('dm_consumer_profile', JSON.stringify(consumerProfile));
+    showWelcomeToast('¡Bienvenido/a de nuevo, ' + consumerProfile.firstname + '!');
     setTimeout(() => window.location.href = 'index.html', 900);
 
   } else if (role === 'vendor') {
@@ -286,21 +293,30 @@ async function registerConsumer() {
     return;
   }
 
-  // Verificar si ya existe
-  const users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-  if (users.find(u => u.identifier === identifier)) {
+  // Verificar si ya existe / crear la cuenta en Supabase
+  const { data, error } = await supabaseClient.rpc('registrar_cliente', {
+    p_nombre: firstname,
+    p_apellido: lastname,
+    p_dni: dni,
+    p_email: identifier,
+    p_telefono: phone,
+    p_ubicacion: location,
+    p_direccion: address,
+    p_password: password,
+  });
+
+  if (error) {
+    showAuthError('c-register-error', 'c-register-error-msg', 'Error de conexión. Intentá de nuevo.');
+    return;
+  }
+  if (!data.success) {
     showAuthError('c-register-error', 'c-register-error-msg', 'Ya existe una cuenta con ese correo o celular. ¿Querés iniciar sesión?');
     return;
   }
 
-  const profile = { firstname, lastname, dni, phone, location, address };
-  const salt = generateSalt();
-  const passwordHash = await hashPassword(password, salt);
-  users.push({ role: 'consumer', identifier, phone, salt, passwordHash, profile });
-  localStorage.setItem('dm_users', JSON.stringify(users));
-
-  consumerProfile = profile;
-  localStorage.setItem('dm_consumer_profile', JSON.stringify(profile));
+  // perfil.id es el uuid real en Supabase; identifier queda como el email/celular
+  consumerProfile = { ...data.perfil, identifier: data.perfil.email };
+  localStorage.setItem('dm_consumer_profile', JSON.stringify(consumerProfile));
   showWelcomeToast('¡Cuenta creada! Bienvenido/a, ' + firstname + ' 🎉');
   setTimeout(() => window.location.href = 'index.html', 900);
 }

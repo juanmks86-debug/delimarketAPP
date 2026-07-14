@@ -39,21 +39,22 @@ function getAllVendorProducts() {
 }
 
 async function getData() {
-  // dm_users sigue guardando SOLO los consumidores (los vendedores ya
-  // viven en la tabla `vendedores` de Supabase, migrados en el paso anterior).
-  const users    = JSON.parse(localStorage.getItem('dm_users') || '[]');
   const products = getAllVendorProducts();
   const orders   = JSON.parse(localStorage.getItem('dm_orders')  || '[]');
 
   const VENDOR_COLUMNS = 'id, nombre_negocio, nombre_contacto, dni, email, telefono, categoria, ubicacion, bio, direccion, estado, created_at';
+  const CLIENTE_COLUMNS = 'id, nombre, apellido, dni, email, telefono, ubicacion, direccion, created_at';
 
   const { data: pendingRows, error: pendingError } = await supabaseClient
     .from('vendedores').select(VENDOR_COLUMNS).eq('estado', 'pendiente');
   const { data: approvedRows, error: approvedError } = await supabaseClient
     .from('vendedores').select(VENDOR_COLUMNS).eq('estado', 'aprobado');
+  const { data: clienteRows, error: clienteError } = await supabaseClient
+    .from('clientes').select(CLIENTE_COLUMNS).order('created_at', { ascending: false });
 
   if (pendingError) console.error('Error cargando pendientes:', pendingError);
   if (approvedError) console.error('Error cargando aprobados:', approvedError);
+  if (clienteError) console.error('Error cargando consumidores:', clienteError);
 
   const mapVendor = v => ({
     id: v.id, name: v.nombre_negocio, dni: v.dni, phone: v.telefono,
@@ -64,9 +65,11 @@ async function getData() {
   const pending = (pendingRows || []).map(mapVendor);
   const vendors = (approvedRows || []).map(mapVendor);
 
-  const consumers = users
-    .filter(u => u.role === 'consumer')
-    .map(u => ({ ...u.profile, identifier: u.identifier }));
+  const consumers = (clienteRows || []).map(c => ({
+    id: c.id, firstname: c.nombre, lastname: c.apellido, dni: c.dni,
+    phone: c.telefono, location: c.ubicacion, address: c.direccion,
+    identifier: c.email,
+  }));
 
   const noRealData = vendors.length === 0 && pending.length === 0 && consumers.length === 0;
 
@@ -270,7 +273,7 @@ function renderConsumers(data) {
         <div class="admin-item-detail">${c.address}</div>
       </div>
       ${!data.isDemo ? `
-        <button class="admin-delete-btn" data-id="${c.identifier}" onclick="deleteConsumer(this.dataset.id)" aria-label="Eliminar consumidor">
+        <button class="admin-delete-btn" data-id="${c.id}" onclick="deleteConsumer(this.dataset.id)" aria-label="Eliminar consumidor">
           <i class="ti ti-trash" style="font-size:16px"></i>
         </button>` : ''}
     </div>
@@ -351,21 +354,17 @@ async function deleteVendor(id) {
   init();
 }
 
-function deleteConsumer(identifier) {
-  if (!identifier) return;
+async function deleteConsumer(id) {
+  if (!id) return;
   if (!confirm('¿Eliminar este consumidor?')) return;
 
-  let users = JSON.parse(localStorage.getItem('dm_users') || '[]');
-  const target = users.find(u => u.role === 'consumer' && u.identifier === identifier);
-  users = users.filter(u => !(u.role === 'consumer' && u.identifier === identifier));
-  localStorage.setItem('dm_users', JSON.stringify(users));
+  const { error } = await supabaseClient.from('clientes').delete().eq('id', id);
+  if (error) { showAdminToast('❌ Error al eliminar'); return; }
 
-  if (target) {
-    // Si este consumidor tenía la sesión activa en este navegador, cerrarla también
-    const activeConsumer = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
-    if (activeConsumer && activeConsumer.dni === target.profile.dni) {
-      localStorage.removeItem('dm_consumer_profile');
-    }
+  // Si este consumidor tenía la sesión activa en este navegador, cerrarla también
+  const activeConsumer = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
+  if (activeConsumer && activeConsumer.id === id) {
+    localStorage.removeItem('dm_consumer_profile');
   }
 
   showAdminToast('🗑️ Consumidor eliminado');
