@@ -3,47 +3,30 @@
 // =============================================
 
 const DEMO_VENDOR = {
-  name: 'Finca El Sol', dni: '20345678', phone: '388 4001234',
-  category: 'frutas', location: 'San Salvador de Jujuy',
-  bio: 'Productores de frutas y verduras de estación.', address: 'Av. Bolivia 1200'
+  name: 'Pizzería Roma', dni: '20345678', phone: '388 4001234',
+  category: 'pizzas', location: 'San Salvador de Jujuy',
+  bio: 'Pizzas artesanales a la piedra, con masa madre.', address: 'Av. Bolivia 1200'
 };
 const DEMO_CONSUMER = {
   firstname: 'María', lastname: 'González', dni: '35678901',
   phone: '388 5556789', location: 'San Salvador de Jujuy', address: 'Gral. Paz 456'
 };
 const DEMO_PRODUCTS = [
-  { icon:'ti-apple',  name:'Manzanas rojas x kg',  vendor:'Finca El Sol',  price:850  },
-  { icon:'ti-bread',  name:'Pan casero artesanal',  vendor:'Panadería Luz', price:600  },
-  { icon:'ti-egg',    name:'Huevos de campo x 12',  vendor:'Granja Ortiz',  price:1200 },
+  { icon:'ti-pizza',  name:'Pizza muzzarella grande', vendor:'Pizzería Roma',       price:5800 },
+  { icon:'ti-bread',  name:'Empanadas de carne x6',   vendor:'Casa de Empanadas Doña Rosa', price:4200 },
+  { icon:'ti-burger', name:'Hamburguesa doble cheddar', vendor:'Burger House',       price:4800 },
 ];
 
 // =============================================
 //   LEER DATOS DEL localStorage
 // =============================================
 
-function getAllVendorProducts() {
-  // Cada vendedor tiene su propia clave: dm_vendor_products_<identifier>.
-  // Acá los juntamos todos, recordando de qué clave vino cada uno,
-  // para poder editarlos/borrarlos correctamente después.
-  const all = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('dm_vendor_products_')) {
-      try {
-        const arr = JSON.parse(localStorage.getItem(key) || '[]');
-        arr.forEach(p => all.push({ ...p, _storageKey: key }));
-      } catch (e) { /* clave corrupta, se ignora */ }
-    }
-  }
-  return all;
-}
-
 async function getData() {
-  const products = getAllVendorProducts();
-  const orders   = JSON.parse(localStorage.getItem('dm_orders')  || '[]');
+  const orders = JSON.parse(localStorage.getItem('dm_orders') || '[]');
 
   const VENDOR_COLUMNS = 'id, nombre_negocio, nombre_contacto, dni, email, telefono, categoria, ubicacion, bio, direccion, estado, created_at';
   const CLIENTE_COLUMNS = 'id, nombre, apellido, dni, email, telefono, ubicacion, direccion, created_at';
+  const PRODUCTO_COLUMNS = 'id, nombre, precio, tiempo_preparacion, categoria, vendedores(nombre_negocio)';
 
   const { data: pendingRows, error: pendingError } = await supabaseClient
     .from('vendedores').select(VENDOR_COLUMNS).eq('estado', 'pendiente');
@@ -51,10 +34,13 @@ async function getData() {
     .from('vendedores').select(VENDOR_COLUMNS).eq('estado', 'aprobado');
   const { data: clienteRows, error: clienteError } = await supabaseClient
     .from('clientes').select(CLIENTE_COLUMNS).order('created_at', { ascending: false });
+  const { data: productoRows, error: productoError } = await supabaseClient
+    .from('productos').select(PRODUCTO_COLUMNS).order('created_at', { ascending: false });
 
   if (pendingError) console.error('Error cargando pendientes:', pendingError);
   if (approvedError) console.error('Error cargando aprobados:', approvedError);
   if (clienteError) console.error('Error cargando consumidores:', clienteError);
+  if (productoError) console.error('Error cargando productos:', productoError);
 
   const mapVendor = v => ({
     id: v.id, name: v.nombre_negocio, dni: v.dni, phone: v.telefono,
@@ -69,6 +55,11 @@ async function getData() {
     id: c.id, firstname: c.nombre, lastname: c.apellido, dni: c.dni,
     phone: c.telefono, location: c.ubicacion, address: c.direccion,
     identifier: c.email,
+  }));
+
+  const products = (productoRows || []).map(p => ({
+    id: p.id, icon: p.categoria, name: p.nombre, price: p.precio,
+    time: p.tiempo_preparacion, vendor: p.vendedores?.nombre_negocio || 'Vendedor',
   }));
 
   const noRealData = vendors.length === 0 && pending.length === 0 && consumers.length === 0;
@@ -178,8 +169,9 @@ function renderDashboard(data) {
 
 function renderVendors(data) {
   const CATEGORY_LABELS = {
-    frutas: 'Frutas y verduras', lacteos: 'Lácteos',
-    panaderia: 'Panadería', carnes: 'Carnes', bebidas: 'Bebidas', otros: 'Otros'
+    pizzas: 'Pizzería', empanadas: 'Casa de empanadas',
+    hamburguesas: 'Hamburguesería', milanesas: 'Rotisería y comida casera',
+    bebidas: 'Bebidas y kiosco', postres: 'Heladería y postres', otros: 'Otros'
   };
 
   const totalVendors = data.vendors.length + (data.pending?.length || 0);
@@ -307,7 +299,7 @@ function renderAdminProducts(data) {
       </div>
       <div class="admin-item-price">$${Number(p.price).toLocaleString('es-AR')}</div>
       ${!data.isDemo ? `
-        <button class="admin-delete-btn" onclick="deleteAdminProduct(${idx})" aria-label="Eliminar producto">
+        <button class="admin-delete-btn" onclick="deleteAdminProduct('${p.id}')" aria-label="Eliminar producto">
           <i class="ti ti-trash" style="font-size:16px"></i>
         </button>` : ''}
     </div>
@@ -338,11 +330,11 @@ async function deleteVendor(id) {
   if (!id) return;
   if (!confirm('¿Eliminar este vendedor y todos sus productos?')) return;
 
+  // Borrar primero sus productos (por si la FK no tiene cascada)
+  await supabaseClient.from('productos').delete().eq('vendedor_id', id);
+
   const { error } = await supabaseClient.from('vendedores').delete().eq('id', id);
   if (error) { showAdminToast('❌ Error al eliminar'); return; }
-
-  // Borrar sus productos publicados localmente (hasta que se migren a Supabase)
-  localStorage.removeItem('dm_vendor_products_' + id);
 
   // Si este vendedor tenía la sesión activa en este navegador, cerrarla también
   const activeVendor = JSON.parse(localStorage.getItem('dm_vendor_profile') || 'null');
@@ -371,16 +363,11 @@ async function deleteConsumer(id) {
   init();
 }
 
-function deleteAdminProduct(idx) {
+async function deleteAdminProduct(id) {
   if (!confirm('¿Eliminar este producto del marketplace?')) return;
-  const products = getAllVendorProducts();
-  const target = products[idx];
-  if (!target) return;
 
-  const arr = JSON.parse(localStorage.getItem(target._storageKey) || '[]');
-  const realIdx = arr.findIndex(p => p.id === target.id);
-  if (realIdx !== -1) arr.splice(realIdx, 1);
-  localStorage.setItem(target._storageKey, JSON.stringify(arr));
+  const { error } = await supabaseClient.from('productos').delete().eq('id', id);
+  if (error) { showAdminToast('❌ Error al eliminar'); return; }
 
   init();
 }

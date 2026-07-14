@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DeliMarket — Productos locales con delivery</title>
-  <meta name="description" content="Comprá productos de productores y comercios locales, con delivery directo a tu puerta. Sumate como consumidor o vendedor en DeliMarket.">
+  <title>DeliMarket — Comida rápida con delivery</title>
+  <meta name="description" content="Comprá pizzas, empanadas, hamburguesas y más de tus locales de comida rápida favoritos, con delivery directo a tu puerta. Sumate como consumidor o vendedor en DeliMarket.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="DeliMarket — Productos locales con delivery">
-  <meta property="og:description" content="Comprá productos de productores y comercios locales, con delivery directo a tu puerta.">
+  <meta property="og:title" content="DeliMarket — Comida rápida con delivery">
+  <meta property="og:description" content="Comprá pizzas, empanadas, hamburguesas y más, con delivery directo a tu puerta.">
   <meta property="og:image" content="https://delimarket-app.vercel.app/og-image.png">
   <meta property="og:url" content="https://delimarket-app.vercel.app">
   <meta name="twitter:card" content="summary_large_image">
@@ -42,7 +42,7 @@
     <div class="hero">
       <div class="hero-text">
         <h2>Comprá con delivery</h2>
-        <p>Productos de productores locales,<br>directo a tu puerta</p>
+        <p>Pizzas, empanadas y hamburguesas,<br>directo a tu puerta</p>
         <div class="hero-cta" id="hero-cta">
           <!-- Se rellena dinámicamente según sesión -->
         </div>
@@ -54,11 +54,12 @@
       <div class="section-title">Categorías</div>
       <div class="categories">
         <button class="cat-chip active"><i class="ti ti-layout-grid" style="font-size:14px" aria-hidden="true"></i> Todos</button>
-        <button class="cat-chip"><i class="ti ti-apple" style="font-size:14px" aria-hidden="true"></i> Frutas y verduras</button>
-        <button class="cat-chip"><i class="ti ti-egg" style="font-size:14px" aria-hidden="true"></i> Lácteos</button>
-        <button class="cat-chip"><i class="ti ti-bread" style="font-size:14px" aria-hidden="true"></i> Panadería</button>
-        <button class="cat-chip"><i class="ti ti-fish" style="font-size:14px" aria-hidden="true"></i> Carnes</button>
+        <button class="cat-chip"><i class="ti ti-pizza" style="font-size:14px" aria-hidden="true"></i> Pizzas</button>
+        <button class="cat-chip"><i class="ti ti-bread" style="font-size:14px" aria-hidden="true"></i> Empanadas</button>
+        <button class="cat-chip"><i class="ti ti-burger" style="font-size:14px" aria-hidden="true"></i> Hamburguesas</button>
+        <button class="cat-chip"><i class="ti ti-meat" style="font-size:14px" aria-hidden="true"></i> Milanesas</button>
         <button class="cat-chip"><i class="ti ti-bottle" style="font-size:14px" aria-hidden="true"></i> Bebidas</button>
+        <button class="cat-chip"><i class="ti ti-ice-cream" style="font-size:14px" aria-hidden="true"></i> Postres</button>
       </div>
     </div>
 
@@ -93,7 +94,7 @@
       <div class="site-footer-top">
         <div class="site-footer-brand">
           <div class="logo"><i class="ti ti-motorbike" aria-hidden="true"></i> DeliMarket</div>
-          <p>Marketplace de productores locales</p>
+          <p>Marketplace de comida rápida</p>
         </div>
         <div class="site-footer-links">
           <a href="terminos.html">Términos y condiciones</a>
@@ -132,12 +133,12 @@
 
     <div style="flex:1; overflow-y:auto;">
       <div class="detail-img">
-        <i id="detail-icon" class="ti ti-apple" aria-hidden="true"></i>
+        <i id="detail-icon" class="ti ti-pizza" aria-hidden="true"></i>
       </div>
       <div class="detail-body">
         <div class="detail-vendor-row">
           <i class="ti ti-store" style="font-size:14px" aria-hidden="true"></i>
-          <span id="detail-vendor">Finca El Sol</span>
+          <span id="detail-vendor">Pizzería Roma</span>
           <span style="color:var(--color-border-secondary)">·</span>
           <i class="ti ti-star" style="font-size:13px;color:#EF9F27" aria-hidden="true"></i>
           <span id="detail-stars">4.8</span>
@@ -147,8 +148,8 @@
         <div class="detail-price" id="detail-price-display">$850</div>
         <div class="detail-badges">
           <span class="detail-badge"><i class="ti ti-clock" style="font-size:13px" aria-hidden="true"></i> <span id="detail-time">30 min</span></span>
-          <span class="detail-badge"><i class="ti ti-leaf" style="font-size:13px" aria-hidden="true"></i> Producto local</span>
-          <span class="detail-badge"><i class="ti ti-certificate" style="font-size:13px" aria-hidden="true"></i> Agroecológico</span>
+          <span class="detail-badge"><i class="ti ti-flame" style="font-size:13px" aria-hidden="true"></i> Recién hecho</span>
+          <span class="detail-badge"><i class="ti ti-truck-delivery" style="font-size:13px" aria-hidden="true"></i> Envío rápido</span>
         </div>
         <div class="detail-section-title">Descripción</div>
         <div class="detail-desc" id="detail-desc">Descripción del producto.</div>

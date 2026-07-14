@@ -10,21 +10,23 @@ let consumerProfile = null;
 let myProducts = [];
 
 const CATEGORY_LABELS = {
-  frutas:    'Frutas y verduras',
-  lacteos:   'Lácteos',
-  panaderia: 'Panadería y repostería',
-  carnes:    'Carnes y aves',
-  bebidas:   'Bebidas',
-  otros:     'Otros productos',
+  pizzas:      'Pizzería',
+  empanadas:   'Casa de empanadas',
+  hamburguesas:'Hamburguesería',
+  milanesas:   'Rotisería y comida casera',
+  bebidas:     'Bebidas y kiosco',
+  postres:     'Heladería y postres',
+  otros:       'Otros productos',
 };
 
 const CATEGORY_ICONS = {
-  'ti-apple':  'Frutas y verduras',
-  'ti-egg':    'Lácteos y huevos',
-  'ti-bread':  'Panadería',
-  'ti-fish':   'Carnes y aves',
-  'ti-bottle': 'Bebidas',
-  'ti-leaf':   'Otros',
+  'ti-pizza':          'Pizzas',
+  'ti-bread':          'Empanadas',
+  'ti-burger':         'Hamburguesas',
+  'ti-meat':           'Milanesas y comida casera',
+  'ti-bottle':         'Bebidas',
+  'ti-ice-cream':      'Postres',
+  'ti-tools-kitchen-2':'Otros',
 };
 
 // =============================================
@@ -838,4 +840,4 @@ function advanceOrderStatus(idx) {
     if (btn) selectRole(btn);
   }
   initDarkMode();
-})();
+})();S

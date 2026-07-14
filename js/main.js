@@ -5,14 +5,14 @@
 
 // ===== PRODUCTOS DEMO (fallback si no hay vendedores) =====
 const DEMO_PRODUCTS = [
-  { id:'d1', icon:'ti-apple',   name:'Manzanas rojas x kg',    vendor:'Finca El Sol',    price:850,  time:'30 min', desc:'Manzanas rojas de cosecha propia, frescas y dulces.',        stars:'4.8', reviews:'124' },
-  { id:'d2', icon:'ti-bread',   name:'Pan casero artesanal',   vendor:'Panadería Luz',   price:600,  time:'45 min', desc:'Pan horneado diariamente con masa madre y harina integral.', stars:'4.9', reviews:'87'  },
-  { id:'d3', icon:'ti-egg',     name:'Huevos de campo x 12',   vendor:'Granja Ortiz',    price:1200, time:'20 min', desc:'Huevos de gallinas criadas en libertad, alimentadas con granos naturales.', stars:'5.0', reviews:'203' },
-  { id:'d4', icon:'ti-bottle',  name:'Leche fresca 1 litro',   vendor:'Tambo Serrano',   price:450,  time:'40 min', desc:'Leche fresca entera, pasteurizada en el día.',               stars:'4.7', reviews:'56'  },
-  { id:'d5', icon:'ti-fish',    name:'Pollo entero fresco',    vendor:'Granja Pérez',    price:3500, time:'50 min', desc:'Pollo criado en granja familiar, sin hormonas ni antibióticos.', stars:'4.6', reviews:'91' },
-  { id:'d6', icon:'ti-leaf',    name:'Verdura de estación',    vendor:'Huerta Verde',    price:700,  time:'25 min', desc:'Mix de verduras de hoja y pimientos de temporada.',          stars:'4.8', reviews:'145' },
-  { id:'d7', icon:'ti-cheese',  name:'Queso cremoso 500g',     vendor:'Tambo Serrano',   price:1800, time:'35 min', desc:'Queso cremoso artesanal elaborado con leche fresca de vaca.', stars:'4.9', reviews:'178' },
-  { id:'d8', icon:'ti-droplet', name:'Miel artesanal 250g',    vendor:'Apiario Norte',   price:2200, time:'30 min', desc:'Miel pura de flores silvestres de la Puna jujeña.',          stars:'5.0', reviews:'67'  },
+  { id:'d1', icon:'ti-pizza',          name:'Pizza muzzarella grande',     vendor:'Pizzería Roma',                price:5800, time:'35 min', desc:'Masa a la piedra, muzzarella y aceitunas. Para compartir.',   stars:'4.8', reviews:'124' },
+  { id:'d2', icon:'ti-bread',          name:'Empanadas de carne x6',       vendor:'Casa de Empanadas Doña Rosa',  price:4200, time:'30 min', desc:'Empanadas jugosas al horno, receta criolla tradicional.',      stars:'4.9', reviews:'87'  },
+  { id:'d3', icon:'ti-burger',         name:'Hamburguesa doble cheddar',   vendor:'Burger House',                 price:4800, time:'25 min', desc:'Doble medallón de carne, cheddar, panceta y papas fritas.',    stars:'5.0', reviews:'203' },
+  { id:'d4', icon:'ti-meat',           name:'Milanesa napolitana c/ papas',vendor:'Rotisería El Buen Sabor',      price:5200, time:'40 min', desc:'Milanesa de ternera con jamón, queso y salsa de tomate.',     stars:'4.7', reviews:'56'  },
+  { id:'d5', icon:'ti-bottle',         name:'Gaseosa cola 1.5L',           vendor:'Kiosco Central',                price:1500, time:'15 min', desc:'Bien fría, ideal para acompañar tu pedido.',                   stars:'4.6', reviews:'91' },
+  { id:'d6', icon:'ti-ice-cream',      name:'Helado artesanal 1kg',        vendor:'Heladería Don Cono',            price:4500, time:'20 min', desc:'Pote de 1kg, elegí hasta 3 gustos artesanales.',               stars:'4.8', reviews:'145' },
+  { id:'d7', icon:'ti-meat',           name:'Choripán completo',           vendor:'Parrilla La Esquina',           price:3200, time:'20 min', desc:'Chorizo a la parrilla con chimichurri y pan casero.',         stars:'4.9', reviews:'178' },
+  { id:'d8', icon:'ti-tools-kitchen-2',name:'Papas fritas cheddar y bacon',vendor:'Burger House',                 price:3800, time:'20 min', desc:'Papas fritas bien crocantes cubiertas de cheddar y panceta.',  stars:'5.0', reviews:'67'  },
 ];
 
 // ===== ESTADO GLOBAL =====
@@ -373,12 +373,13 @@ function removeCartItem(idx) {
 // =============================================
 
 const CATEGORY_MAP = {
-  'todos':             null,
-  'frutas y verduras': 'ti-apple',
-  'lácteos':           'ti-egg',
-  'panadería':         'ti-bread',
-  'carnes':            'ti-fish',
-  'bebidas':           'ti-bottle',
+  'todos':        null,
+  'pizzas':       'ti-pizza',
+  'empanadas':    'ti-bread',
+  'hamburguesas': 'ti-burger',
+  'milanesas':    'ti-meat',
+  'bebidas':      'ti-bottle',
+  'postres':      'ti-ice-cream',
 };
 
 let activeCategoryIcon = null;
