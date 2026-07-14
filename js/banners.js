@@ -2,44 +2,62 @@
 //   banners.js — Gestión de banners publicitarios
 //   Admin sube hasta 3 banners → se muestran
 //   en index.html con rotación automática.
-//   Almacenamiento: localStorage (dm_banners)
+//   Almacenamiento: Supabase (tabla `banners` +
+//   bucket de Storage `banners-imagenes`).
 // =============================================
 
-const BANNERS_KEY = 'dm_banners';
 const MAX_BANNERS = 3;
 
+// Cache en memoria de los banners activos, para no tener que
+// esperar una consulta a Supabase en cada render.
+let bannersCache = [];
+
 // =============================================
-//   LECTURA / ESCRITURA
+//   LECTURA
 // =============================================
 
-function getBanners() {
-  return JSON.parse(localStorage.getItem(BANNERS_KEY) || '[]');
-}
+async function refreshBanners() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('banners')
+      .select('id, titulo, imagen_url, created_at')
+      .eq('activo', true)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
 
-function saveBanners(banners) {
-  localStorage.setItem(BANNERS_KEY, JSON.stringify(banners));
+    bannersCache = (data || []).map(b => ({
+      id: b.id,
+      image: b.imagen_url,
+      title: b.titulo || '',
+      date: new Date(b.created_at).toLocaleDateString('es-AR'),
+    }));
+  } catch (e) {
+    console.error('No se pudieron cargar los banners desde Supabase:', e);
+    bannersCache = [];
+  }
+  return bannersCache;
 }
 
 // =============================================
 //   PANEL ADMIN — subir / eliminar banners
 // =============================================
 
-function initAdminBanners() {
+async function initAdminBanners() {
   const tab = document.getElementById('tab-banners');
   if (!tab) return;
+  await refreshBanners();
   renderAdminBanners();
 }
 
 function openBannerFilePicker() {
-  const banners = getBanners();
-  if (banners.length >= MAX_BANNERS) {
+  if (bannersCache.length >= MAX_BANNERS) {
     alert('Ya tenés 3 banners activos. Eliminá uno antes de subir otro.');
     return;
   }
   document.getElementById('banner-file-input').click();
 }
 
-function onBannerFileSelected(input) {
+async function onBannerFileSelected(input) {
   const file = input.files[0];
   if (!file) return;
 
@@ -57,32 +75,58 @@ function onBannerFileSelected(input) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = function (e) {
-    const banners = getBanners();
-    if (banners.length >= MAX_BANNERS) return;
+  if (bannersCache.length >= MAX_BANNERS) {
+    alert('Ya tenés 3 banners activos. Eliminá uno antes de subir otro.');
+    input.value = '';
+    return;
+  }
 
-    const titleInput = document.getElementById('banner-title-input');
-    const title = titleInput ? titleInput.value.trim() : '';
+  const titleInput = document.getElementById('banner-title-input');
+  const title = titleInput ? titleInput.value.trim() : '';
 
-    banners.push({
-      id:    Date.now(),
-      image: e.target.result,   // base64
-      title: title || '',
-      date:  new Date().toLocaleDateString('es-AR'),
-    });
-    saveBanners(banners);
+  const uploadBtn = document.getElementById('banner-upload-btn');
+  if (uploadBtn) { uploadBtn.disabled = true; }
+
+  try {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabaseClient
+      .storage
+      .from('banners-imagenes')
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (uploadError) throw uploadError;
+
+    const { data: pub } = supabaseClient.storage.from('banners-imagenes').getPublicUrl(path);
+
+    const { error: insertError } = await supabaseClient
+      .from('banners')
+      .insert({ titulo: title || null, imagen_url: pub.publicUrl, activo: true });
+    if (insertError) throw insertError;
+
+    await refreshBanners();
     renderAdminBanners();
     input.value = '';
     if (titleInput) titleInput.value = '';
-  };
-  reader.readAsDataURL(file);
+  } catch (e) {
+    console.error('No se pudo subir el banner a Supabase:', e);
+    alert('No se pudo subir el banner. Intentá de nuevo.');
+  } finally {
+    if (uploadBtn) { uploadBtn.disabled = bannersCache.length >= MAX_BANNERS; }
+  }
 }
 
-function deleteAdminBanner(id) {
+async function deleteAdminBanner(id) {
   if (!confirm('¿Eliminar este banner?')) return;
-  const banners = getBanners().filter(b => b.id !== id);
-  saveBanners(banners);
+
+  const { error } = await supabaseClient.from('banners').delete().eq('id', id);
+  if (error) {
+    console.error('No se pudo eliminar el banner en Supabase:', error);
+    alert('No se pudo eliminar el banner. Intentá de nuevo.');
+    return;
+  }
+
+  await refreshBanners();
   renderAdminBanners();
 }
 
@@ -91,7 +135,7 @@ function renderAdminBanners() {
   const counter = document.getElementById('banner-count-label');
   if (!list) return;
 
-  const banners = getBanners();
+  const banners = bannersCache;
   if (counter) counter.textContent = `${banners.length} de ${MAX_BANNERS} banners activos`;
 
   // Botón de subir: deshabilitado si ya hay 3
@@ -133,10 +177,11 @@ function renderAdminBanners() {
 let bannerInterval = null;
 let bannerIndex    = 0;
 
-function initIndexBanners() {
+async function initIndexBanners() {
   const section = document.getElementById('banners-section');
   if (!section) return;
 
+  await refreshBanners();
   renderIndexBanners();
 }
 
@@ -144,7 +189,7 @@ function renderIndexBanners() {
   const section = document.getElementById('banners-section');
   if (!section) return;
 
-  const banners = getBanners();
+  const banners = bannersCache;
 
   if (banners.length === 0) {
     section.style.display = 'none';
@@ -193,7 +238,7 @@ function goToBanner(idx) {
 
   // Reiniciar timer al hacer clic manual
   clearInterval(bannerInterval);
-  const banners = getBanners();
+  const banners = bannersCache;
   if (banners.length > 1) {
     bannerInterval = setInterval(() => {
       goToBanner((bannerIndex + 1) % banners.length);
