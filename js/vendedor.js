@@ -412,7 +412,41 @@ function showWelcomeToast(msg) {
 //   PANEL VENDEDOR
 // =============================================
 
-function loadVendorPanel() {
+/**
+ * Trae desde Supabase (tabla `productos`) los productos publicados por
+ * este vendedor y los deja en `myProducts` con el mismo shape que antes
+ * tenían los objetos guardados en localStorage.
+ */
+async function loadMyProducts() {
+  if (!vendorProfile) return;
+  try {
+    const { data, error } = await supabaseClient
+      .from('productos')
+      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria')
+      .eq('vendedor_id', vendorProfile.id)
+      .eq('activo', true)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    myProducts = (data || []).map(p => ({
+      id: p.id,
+      name: p.nombre,
+      icon: p.categoria,
+      price: p.precio,
+      time: p.tiempo_preparacion || '—',
+      desc: p.descripcion || '',
+      image: p.imagen_url || null,
+      vendor: vendorProfile.name,
+      vendorIdentifier: vendorProfile.id,
+      categoryLabel: CATEGORY_ICONS[p.categoria] || 'Otros',
+    }));
+  } catch (e) {
+    console.error('No se pudieron cargar tus productos desde Supabase:', e);
+    myProducts = [];
+  }
+}
+
+async function loadVendorPanel() {
   if (!vendorProfile) return;
   document.getElementById('vendor-display-name').textContent = vendorProfile.name;
   document.getElementById('profile-biz-name').textContent = vendorProfile.name;
@@ -422,6 +456,8 @@ function loadVendorPanel() {
   document.getElementById('profile-category').textContent = CATEGORY_LABELS[vendorProfile.category] || vendorProfile.category;
   document.getElementById('profile-location').textContent = vendorProfile.location;
   document.getElementById('profile-address').textContent = vendorProfile.address || '—';
+
+  await loadMyProducts();
   document.getElementById('stat-products').textContent = myProducts.length;
 
   const ratingStats = getVendorRatingStats(vendorProfile.name);
@@ -467,7 +503,7 @@ function openProductModal(editIdx = null) {
     document.getElementById('p-price').value   = p.price;
     document.getElementById('p-time').value    = p.time !== '—' ? p.time : '';
     document.getElementById('p-desc').value    = p.desc || '';
-    window._pendingProductImage = p.image || null;
+    window._pendingProductImageFile = null;
     const preview = document.getElementById('p-img-preview');
     const imgIcon = document.getElementById('p-img-icon');
     if (p.image && preview) {
@@ -483,7 +519,7 @@ function openProductModal(editIdx = null) {
   } else {
     ['p-name', 'p-price', 'p-time', 'p-desc'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('p-category').value = '';
-    window._pendingProductImage = null;
+    window._pendingProductImageFile = null;
     const preview = document.getElementById('p-img-preview');
     const imgIcon = document.getElementById('p-img-icon');
     if (preview) { preview.src = ''; preview.style.display = 'none'; }
@@ -504,15 +540,32 @@ function onProductImageSelected(input) {
   if (!file) return;
   if (!file.type.startsWith('image/')) { alert('Solo se aceptan imágenes.'); return; }
   if (file.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2 MB.'); return; }
+  window._pendingProductImageFile = file;
   const reader = new FileReader();
   reader.onload = e => {
-    window._pendingProductImage = e.target.result;
     const preview = document.getElementById('p-img-preview');
     const imgIcon = document.getElementById('p-img-icon');
     if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
     if (imgIcon) imgIcon.style.display = 'none';
   };
   reader.readAsDataURL(file);
+}
+
+/**
+ * Sube la imagen del producto al bucket "productos-imagenes" de Supabase Storage
+ * y devuelve la URL pública para guardar en la columna imagen_url.
+ */
+async function uploadProductImage(file, vendorId) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${vendorId}/${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabaseClient
+    .storage
+    .from('productos-imagenes')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabaseClient.storage.from('productos-imagenes').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 function closeProductModal() {
@@ -523,7 +576,7 @@ function closeModalOutside(e) {
   if (e.target === document.getElementById('product-modal')) closeProductModal();
 }
 
-function saveProduct() {
+async function saveProduct() {
   const name  = document.getElementById('p-name').value.trim();
   const icon  = document.getElementById('p-category').value;
   const price = parseInt(document.getElementById('p-price').value);
@@ -535,25 +588,65 @@ function saveProduct() {
     return;
   }
 
-  const product = {
-    id: editingProductIdx !== null ? myProducts[editingProductIdx].id : Date.now(),
-    name, icon, price, time, desc,
-    vendor: vendorProfile.name,
-    vendorIdentifier: vendorProfile.id,
-    categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
-    image: window._pendingProductImage || null,
-  };
+  const saveBtn = document.getElementById('p-save-btn');
+  const originalBtnText = saveBtn ? saveBtn.textContent : '';
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando...'; }
 
-  if (editingProductIdx !== null) {
-    myProducts[editingProductIdx] = product;
-  } else {
-    myProducts.push(product);
+  try {
+    // Si el vendedor eligió una foto nueva, subirla a Storage.
+    // Si no, conservar la que ya tenía el producto (o null si es nuevo).
+    let imageUrl = editingProductIdx !== null ? (myProducts[editingProductIdx].image || null) : null;
+    if (window._pendingProductImageFile) {
+      imageUrl = await uploadProductImage(window._pendingProductImageFile, vendorProfile.id);
+    }
+
+    const row = {
+      nombre: name,
+      categoria: icon,
+      precio: price,
+      tiempo_preparacion: time,
+      descripcion: desc,
+      imagen_url: imageUrl,
+    };
+
+    if (editingProductIdx !== null) {
+      const id = myProducts[editingProductIdx].id;
+      const { error } = await supabaseClient.from('productos').update(row).eq('id', id);
+      if (error) throw error;
+
+      myProducts[editingProductIdx] = {
+        ...myProducts[editingProductIdx],
+        name, icon, price, time, desc, image: imageUrl,
+        categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
+      };
+    } else {
+      const { data, error } = await supabaseClient
+        .from('productos')
+        .insert({ ...row, vendedor_id: vendorProfile.id, activo: true })
+        .select()
+        .single();
+      if (error) throw error;
+
+      myProducts.push({
+        id: data.id, name, icon, price, time, desc,
+        vendor: vendorProfile.name,
+        vendorIdentifier: vendorProfile.id,
+        categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
+        image: imageUrl,
+      });
+    }
+
+    editingProductIdx = null;
+    window._pendingProductImageFile = null;
+    document.getElementById('stat-products').textContent = myProducts.length;
+    renderMyProducts();
+    closeProductModal();
+  } catch (e) {
+    console.error('No se pudo guardar el producto en Supabase:', e);
+    alert('No se pudo guardar el producto. Intentá de nuevo.');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = originalBtnText; }
   }
-  editingProductIdx = null;
-  localStorage.setItem('dm_vendor_products_' + vendorProfile.id, JSON.stringify(myProducts));
-  document.getElementById('stat-products').textContent = myProducts.length;
-  renderMyProducts();
-  closeProductModal();
 }
 
 function renderMyProducts() {
@@ -589,10 +682,19 @@ function renderMyProducts() {
   `).join('');
 }
 
-function deleteProduct(idx) {
+async function deleteProduct(idx) {
   if (!confirm('¿Eliminar este producto?')) return;
+  const product = myProducts[idx];
+  if (!product) return;
+
+  const { error } = await supabaseClient.from('productos').delete().eq('id', product.id);
+  if (error) {
+    console.error('No se pudo eliminar el producto en Supabase:', error);
+    alert('No se pudo eliminar el producto. Intentá de nuevo.');
+    return;
+  }
+
   myProducts.splice(idx, 1);
-  localStorage.setItem('dm_vendor_products_' + vendorProfile.id, JSON.stringify(myProducts));
   document.getElementById('stat-products').textContent = myProducts.length;
   renderMyProducts();
 }
@@ -709,7 +811,6 @@ function advanceOrderStatus(idx) {
   const savedVendor = localStorage.getItem('dm_vendor_profile');
   if (savedVendor) {
     vendorProfile = JSON.parse(savedVendor);
-    myProducts = JSON.parse(localStorage.getItem('dm_vendor_products_' + vendorProfile.id) || '[]');
   }
   const savedConsumer = localStorage.getItem('dm_consumer_profile');
   if (savedConsumer) consumerProfile = JSON.parse(savedConsumer);
