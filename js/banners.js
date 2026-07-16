@@ -180,6 +180,8 @@ let bannerIndex    = 0;
 async function initIndexBanners() {
   const section = document.getElementById('banners-section');
   if (!section) return;
+  section.style.display = 'block';
+  showSectionLoader('banner-track', 48);
 
   await refreshBanners();
   renderIndexBanners();

@@ -119,6 +119,7 @@ function goToVendedor(role) {
  */
 async function loadProducts() {
   let vendorProducts = [];
+  showSectionLoader('track', 56);
 
   try {
     const { data, error } = await supabaseClient
@@ -164,6 +165,7 @@ async function loadProducts() {
 async function loadProveedores() {
   const row = document.getElementById('providers-row');
   if (!row) return;
+  showSectionLoader('providers-row', 48);
 
   try {
     const { data, error } = await supabaseClient
