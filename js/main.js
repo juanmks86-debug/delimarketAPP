@@ -155,6 +155,61 @@ async function loadProducts() {
 }
 
 /**
+ * Carga los proveedores aprobados desde Supabase (tabla `vendedores`)
+ * y renderiza la fila de cards redondas. El logo es la misma foto de
+ * perfil que el vendedor subió al registrarse (columna logo_url); si
+ * no tiene, se muestra un círculo con la inicial del negocio.
+ */
+async function loadProveedores() {
+  const row = document.getElementById('providers-row');
+  if (!row) return;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('vendedores')
+      .select('id, nombre_negocio, logo_url')
+      .eq('estado', 'aprobado')
+      .order('nombre_negocio');
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      row.parentElement.style.display = 'none';
+      return;
+    }
+
+    row.innerHTML = data.map(buildProviderCard).join('');
+  } catch (e) {
+    console.error('No se pudieron cargar los proveedores desde Supabase:', e);
+    row.parentElement.style.display = 'none';
+  }
+}
+
+function buildProviderCard(v) {
+  const safeName = escapeHtml(v.nombre_negocio || 'Vendedor');
+  const initial = (v.nombre_negocio || '?').trim().charAt(0).toUpperCase();
+  const avatarContent = v.logo_url
+    ? `<img src="${v.logo_url}" alt="${safeName}">`
+    : initial;
+  return `
+    <button class="provider-card" data-vendor-id="${v.id}" onclick="filterByProvider('${v.id}', this)">
+      <div class="provider-avatar">${avatarContent}</div>
+      <div class="provider-name">${safeName}</div>
+    </button>`;
+}
+
+let activeVendorId = null;
+
+function filterByProvider(vendorId, btn) {
+  const alreadyActive = activeVendorId === vendorId;
+  activeVendorId = alreadyActive ? null : vendorId;
+  document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('active'));
+  if (!alreadyActive) btn.classList.add('active');
+  applyFilters();
+  document.querySelector('.section .section-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
  * Crea el HTML de una card de producto.
  */
 function buildCard(p) {
@@ -437,6 +492,9 @@ function applyFilters() {
   let filtered = activeCategoryIcon
     ? allProducts.filter(p => p.icon === activeCategoryIcon)
     : [...allProducts];
+  if (activeVendorId) {
+    filtered = filtered.filter(p => p.vendedorId === activeVendorId);
+  }
   if (q) {
     filtered = filtered.filter(p =>
       p.name.toLowerCase().includes(q) || p.vendor.toLowerCase().includes(q)
@@ -457,6 +515,7 @@ function applyFilters() {
 // =============================================
 initSession();
 loadProducts();
+loadProveedores();
 injectSortBar();
 initIndexBanners();
 initIndexTema();

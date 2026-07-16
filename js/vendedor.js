@@ -331,8 +331,13 @@ function updateBioCount(textarea) {
   document.getElementById('bio-count').textContent = textarea.value.length + ' / 160';
 }
 
+let selectedVendorAvatarFile = null;
+
 function previewAvatar(input) {
   if (input.files && input.files[0]) {
+    const file = input.files[0];
+    if (file.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2 MB.'); return; }
+    selectedVendorAvatarFile = file;
     const reader = new FileReader();
     reader.onload = e => {
       const circle = document.querySelector('#screen-register .avatar-circle');
@@ -341,8 +346,26 @@ function previewAvatar(input) {
       circle.style.backgroundPosition = 'center';
       document.getElementById('avatar-icon').style.display = 'none';
     };
-    reader.readAsDataURL(input.files[0]);
+    reader.readAsDataURL(file);
   }
+}
+
+/**
+ * Sube la foto de perfil del vendedor al bucket "vendedores-logos" de
+ * Supabase Storage. Esta misma imagen se usa como logo en el carrusel
+ * de proveedores del index, así el vendedor solo sube una foto.
+ */
+async function uploadVendorAvatar(file, vendorId) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${vendorId}/${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabaseClient
+    .storage
+    .from('vendedores-logos')
+    .upload(path, file, { upsert: false, contentType: file.type });
+  if (uploadError) throw uploadError;
+
+  const { data } = supabaseClient.storage.from('vendedores-logos').getPublicUrl(path);
+  return data.publicUrl;
 }
 
 async function registerVendor() {
@@ -391,6 +414,20 @@ async function registerVendor() {
   if (!data.success) {
     showAuthError('biz-register-error', 'biz-register-error-msg', 'Ya existe una cuenta con ese correo o celular. ¿Querés iniciar sesión?');
     return;
+  }
+
+  // Si eligió una foto de perfil, la subimos y la guardamos como logo_url;
+  // esta misma imagen es la que se muestra luego en el carrusel de
+  // proveedores del index (evita pedirle una segunda foto al vendedor).
+  if (selectedVendorAvatarFile) {
+    try {
+      const vendorId = data.perfil?.id;
+      const logoUrl = await uploadVendorAvatar(selectedVendorAvatarFile, vendorId || identifier);
+      await supabaseClient.from('vendedores').update({ logo_url: logoUrl }).eq('email', identifier);
+    } catch (e) {
+      console.error('No se pudo subir la foto de perfil del vendedor:', e);
+    }
+    selectedVendorAvatarFile = null;
   }
 
   showWelcomeToast('¡Solicitud enviada! El administrador revisará tu cuenta 🕐');
