@@ -477,7 +477,7 @@ async function loadMyProducts() {
   try {
     const { data, error } = await supabaseClient
       .from('productos')
-      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria')
+      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, franja')
       .eq('vendedor_id', vendorProfile.id)
       .eq('activo', true)
       .order('created_at', { ascending: false });
@@ -487,6 +487,7 @@ async function loadMyProducts() {
       id: p.id,
       name: p.nombre,
       icon: p.categoria,
+      franja: p.franja,
       price: p.precio,
       time: p.tiempo_preparacion || '—',
       desc: p.descripcion || '',
@@ -555,6 +556,7 @@ function openProductModal(editIdx = null) {
     const p = myProducts[editIdx];
     document.getElementById('p-name').value    = p.name;
     document.getElementById('p-category').value = p.icon;
+    document.getElementById('p-franja').value = p.franja || '';
     document.getElementById('p-price').value   = p.price;
     document.getElementById('p-time').value    = p.time !== '—' ? p.time : '';
     document.getElementById('p-desc').value    = p.desc || '';
@@ -574,10 +576,7 @@ function openProductModal(editIdx = null) {
   } else {
     ['p-name', 'p-price', 'p-time', 'p-desc'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('p-category').value = '';
-    window._pendingProductImageFile = null;
-    const preview = document.getElementById('p-img-preview');
-    const imgIcon = document.getElementById('p-img-icon');
-    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    document.getElementById('p-franja').value = '';
     if (imgIcon) imgIcon.style.display = 'flex';
     if (title) title.textContent = 'Agregar producto';
     const saveBtn = document.getElementById('p-save-btn');
@@ -634,12 +633,13 @@ function closeModalOutside(e) {
 async function saveProduct() {
   const name  = document.getElementById('p-name').value.trim();
   const icon  = document.getElementById('p-category').value;
+  const franja = document.getElementById('p-franja').value;
   const price = parseInt(document.getElementById('p-price').value);
   const time  = document.getElementById('p-time').value.trim() || '—';
   const desc  = document.getElementById('p-desc').value.trim();
 
-  if (!name || !icon || !price) {
-    alert('Completá nombre, categoría y precio');
+  if (!name || !icon || !franja || !price) {
+    alert('Completá nombre, categoría, franja horaria y precio');
     return;
   }
 
@@ -658,6 +658,7 @@ async function saveProduct() {
     const row = {
       nombre: name,
       categoria: icon,
+      franja: franja,
       precio: price,
       tiempo_preparacion: time,
       descripcion: desc,
@@ -671,7 +672,7 @@ async function saveProduct() {
 
       myProducts[editingProductIdx] = {
         ...myProducts[editingProductIdx],
-        name, icon, price, time, desc, image: imageUrl,
+        name, icon, franja, price, time, desc, image: imageUrl,
         categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
       };
     } else {
@@ -683,7 +684,7 @@ async function saveProduct() {
       if (error) throw error;
 
       myProducts.push({
-        id: data.id, name, icon, price, time, desc,
+        id: data.id, name, icon, franja, price, time, desc,
         vendor: vendorProfile.name,
         vendorIdentifier: vendorProfile.id,
         categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
@@ -723,7 +724,7 @@ function renderMyProducts() {
       </div>
       <div class="my-product-info">
         <div class="my-product-name">${escapeHtml(p.name)}</div>
-        <div class="my-product-price">$${p.price.toLocaleString('es-AR')} · ${p.categoryLabel}</div>
+        <div class="my-product-price">$${p.price.toLocaleString('es-AR')} · ${p.categoryLabel}${p.franja ? ' · ' + FRANJA_LABELS[p.franja] : ''}</div>
       </div>
       <div class="my-product-actions">
         <button class="icon-btn" onclick="openProductModal(${idx})" aria-label="Editar">

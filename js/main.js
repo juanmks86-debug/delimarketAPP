@@ -5,14 +5,14 @@
 
 // ===== PRODUCTOS DEMO (fallback si no hay vendedores) =====
 const DEMO_PRODUCTS = [
-  { id:'d1', icon:'ti-pizza',          name:'Pizza muzzarella grande',     vendor:'Pizzería Roma',                price:5800, time:'35 min', desc:'Masa a la piedra, muzzarella y aceitunas. Para compartir.',   stars:'4.8', reviews:'124' },
-  { id:'d2', icon:'ti-bread',          name:'Empanadas de carne x6',       vendor:'Casa de Empanadas Doña Rosa',  price:4200, time:'30 min', desc:'Empanadas jugosas al horno, receta criolla tradicional.',      stars:'4.9', reviews:'87'  },
-  { id:'d3', icon:'ti-burger',         name:'Hamburguesa doble cheddar',   vendor:'Burger House',                 price:4800, time:'25 min', desc:'Doble medallón de carne, cheddar, panceta y papas fritas.',    stars:'5.0', reviews:'203' },
-  { id:'d4', icon:'ti-meat',           name:'Milanesa napolitana c/ papas',vendor:'Rotisería El Buen Sabor',      price:5200, time:'40 min', desc:'Milanesa de ternera con jamón, queso y salsa de tomate.',     stars:'4.7', reviews:'56'  },
-  { id:'d5', icon:'ti-bottle',         name:'Gaseosa cola 1.5L',           vendor:'Kiosco Central',                price:1500, time:'15 min', desc:'Bien fría, ideal para acompañar tu pedido.',                   stars:'4.6', reviews:'91' },
-  { id:'d6', icon:'ti-ice-cream',      name:'Helado artesanal 1kg',        vendor:'Heladería Don Cono',            price:4500, time:'20 min', desc:'Pote de 1kg, elegí hasta 3 gustos artesanales.',               stars:'4.8', reviews:'145' },
-  { id:'d7', icon:'ti-meat',           name:'Choripán completo',           vendor:'Parrilla La Esquina',           price:3200, time:'20 min', desc:'Chorizo a la parrilla con chimichurri y pan casero.',         stars:'4.9', reviews:'178' },
-  { id:'d8', icon:'ti-tools-kitchen-2',name:'Papas fritas cheddar y bacon',vendor:'Burger House',                 price:3800, time:'20 min', desc:'Papas fritas bien crocantes cubiertas de cheddar y panceta.',  stars:'5.0', reviews:'67'  },
+  { id:'d1', icon:'ti-pizza',          franja:'cena',     name:'Pizza muzzarella grande',     vendor:'Pizzería Roma',                price:5800, time:'35 min', desc:'Masa a la piedra, muzzarella y aceitunas. Para compartir.',   stars:'4.8', reviews:'124' },
+  { id:'d2', icon:'ti-bread',          franja:'almuerzo', name:'Empanadas de carne x6',       vendor:'Casa de Empanadas Doña Rosa',  price:4200, time:'30 min', desc:'Empanadas jugosas al horno, receta criolla tradicional.',      stars:'4.9', reviews:'87'  },
+  { id:'d3', icon:'ti-burger',         franja:'cena',     name:'Hamburguesa doble cheddar',   vendor:'Burger House',                 price:4800, time:'25 min', desc:'Doble medallón de carne, cheddar, panceta y papas fritas.',    stars:'5.0', reviews:'203' },
+  { id:'d4', icon:'ti-meat',           franja:'almuerzo', name:'Milanesa napolitana c/ papas',vendor:'Rotisería El Buen Sabor',      price:5200, time:'40 min', desc:'Milanesa de ternera con jamón, queso y salsa de tomate.',     stars:'4.7', reviews:'56'  },
+  { id:'d5', icon:'ti-bottle',         franja:'merienda', name:'Gaseosa cola 1.5L',           vendor:'Kiosco Central',                price:1500, time:'15 min', desc:'Bien fría, ideal para acompañar tu pedido.',                   stars:'4.6', reviews:'91' },
+  { id:'d6', icon:'ti-ice-cream',      franja:'merienda', name:'Helado artesanal 1kg',        vendor:'Heladería Don Cono',            price:4500, time:'20 min', desc:'Pote de 1kg, elegí hasta 3 gustos artesanales.',               stars:'4.8', reviews:'145' },
+  { id:'d7', icon:'ti-meat',           franja:'almuerzo', name:'Choripán completo',           vendor:'Parrilla La Esquina',           price:3200, time:'20 min', desc:'Chorizo a la parrilla con chimichurri y pan casero.',         stars:'4.9', reviews:'178' },
+  { id:'d8', icon:'ti-tools-kitchen-2',franja:'cena',     name:'Papas fritas cheddar y bacon',vendor:'Burger House',                 price:3800, time:'20 min', desc:'Papas fritas bien crocantes cubiertas de cheddar y panceta.',  stars:'5.0', reviews:'67'  },
 ];
 
 // ===== ESTADO GLOBAL =====
@@ -123,7 +123,7 @@ async function loadProducts() {
   try {
     const { data, error } = await supabaseClient
       .from('productos')
-      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, vendedor_id, vendedores(nombre_negocio)')
+      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, franja, vendedor_id, vendedores(nombre_negocio)')
       .eq('activo', true)
       .order('created_at', { ascending: false });
 
@@ -141,6 +141,7 @@ async function loadProducts() {
       desc: p.descripcion || '',
       image: p.imagen_url || null,
       icon: p.categoria || 'ti-package',
+      franja: p.franja || null,
     }));
   } catch (e) {
     console.error('No se pudieron cargar los productos desde Supabase:', e);
@@ -207,6 +208,37 @@ function filterByProvider(vendorId, btn) {
   if (!alreadyActive) btn.classList.add('active');
   applyFilters();
   document.querySelector('.section .section-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// =============================================
+//   FRANJA HORARIA (desayuno / almuerzo / merienda / cena)
+// =============================================
+
+/**
+ * Devuelve la franja horaria sugerida según la hora actual del
+ * dispositivo. Es solo una sugerencia de arranque: el usuario puede
+ * tocar otra pestaña y ver igual el resto de los productos.
+ */
+function getCurrentFranja() {
+  const h = new Date().getHours();
+  if (h >= 6 && h < 11) return 'desayuno';
+  if (h >= 11 && h < 16) return 'almuerzo';
+  if (h >= 16 && h < 20) return 'merienda';
+  return 'cena'; // 20:00–05:59
+}
+
+let activeFranja = getCurrentFranja();
+
+function initFranjaChips() {
+  document.querySelectorAll('#franja-chips .cat-chip').forEach(chip => {
+    if (chip.dataset.franja === activeFranja) chip.classList.add('active');
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#franja-chips .cat-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeFranja = chip.dataset.franja;
+      applyFilters();
+    });
+  });
 }
 
 /**
@@ -492,6 +524,9 @@ function applyFilters() {
   let filtered = activeCategoryIcon
     ? allProducts.filter(p => p.icon === activeCategoryIcon)
     : [...allProducts];
+  if (activeFranja && activeFranja !== 'todas') {
+    filtered = filtered.filter(p => p.franja === activeFranja);
+  }
   if (activeVendorId) {
     filtered = filtered.filter(p => p.vendedorId === activeVendorId);
   }
@@ -516,6 +551,7 @@ function applyFilters() {
 initSession();
 loadProducts();
 loadProveedores();
+initFranjaChips();
 injectSortBar();
 initIndexBanners();
 initIndexTema();
