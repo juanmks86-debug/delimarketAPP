@@ -246,22 +246,42 @@
 .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-border-secondary); cursor: pointer; }
 .dot.active { background: #1D9E75; width: 18px; border-radius: 999px; transition: width 0.2s; }
 
-/* ----- 6. CARRITO FLOTANTE ----- */
-.cart-float { display: flex; justify-content: center; margin-top: 8px; padding-bottom: 16px; }
-.cart-btn {
-  display: flex; align-items: center; gap: 10px;
-  background: #085041; color: #fff;
-  padding: 12px 24px; border-radius: 999px;
-  font-size: 14px; font-weight: 500; cursor: pointer;
-  border: none; font-family: var(--font-sans);
-  transition: opacity 0.2s;
+/* ----- 6. CARRITO FLOTANTE (estilo widget de chat) ----- */
+.cart-float {
+  position: fixed;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  z-index: 500;
 }
-.cart-btn:hover { opacity: 0.9; }
-.cart-btn i { font-size: 18px; }
+.cart-btn {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px;
+  background: #085041; color: #fff;
+  border-radius: 50%;
+  border: none; cursor: pointer; font-family: var(--font-sans);
+  box-shadow: 0 6px 16px rgba(8, 80, 65, 0.38);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cart-btn:hover { transform: scale(1.06); box-shadow: 0 8px 20px rgba(8, 80, 65, 0.45); }
+.cart-btn:active { transform: scale(0.96); }
+.cart-btn i { font-size: 24px; }
 .cart-count {
+  position: absolute;
+  top: -2px; right: -2px;
   background: #5DCAA5; color: #085041;
-  border-radius: 999px; font-size: 12px; font-weight: 500;
-  padding: 1px 7px;
+  border: 2px solid #fff;
+  border-radius: 999px; font-size: 11px; font-weight: 700;
+  min-width: 20px; height: 20px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+@media (max-width: 480px) {
+  .cart-float { right: 12px; }
+  .cart-btn { width: 50px; height: 50px; }
+  .cart-btn i { font-size: 21px; }
 }
 
 /* ----- 7. PANTALLA: DETALLE DE PRODUCTO ----- */
