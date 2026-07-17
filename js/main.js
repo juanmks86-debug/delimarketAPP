@@ -726,6 +726,8 @@ async function renderMyOrders() {
     return;
   }
 
+  showSectionLoader('my-orders-body', 48);
+
   const { data, error } = await supabaseClient
     .from('pedidos')
     .select('id, direccion, items, total, estado, calificado_stars, created_at')

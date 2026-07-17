@@ -823,6 +823,7 @@ const STATUS_NEXT = {
 async function renderVendorOrders() {
   const list = document.getElementById('vendor-orders-list');
   if (!list || !vendorProfile) return;
+  showSectionLoader('vendor-orders-list', 48);
 
   const { data, error } = await supabaseClient
     .from('pedidos')

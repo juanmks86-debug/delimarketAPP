@@ -54,7 +54,7 @@
   position: sticky; top: 0; z-index: 10;
 }
 .admin-menu-btn {
-  border: none; background: none; cursor: pointer; padding: 4px;
+  border: none; background: none; cursor: pointer; padding: 10px;
   color: var(--color-text-primary);
 }
 .admin-topbar-title { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }

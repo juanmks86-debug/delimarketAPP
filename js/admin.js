@@ -378,6 +378,9 @@ async function deleteAdminProduct(id) {
 // =============================================
 
 async function init() {
+  showSectionLoader('admin-vendors-list', 48);
+  showSectionLoader('admin-consumers-list', 48);
+  showSectionLoader('admin-products-list', 48);
   const data = await getData();
   await refreshBanners();
   renderDashboard(data);
