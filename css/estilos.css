@@ -538,11 +538,41 @@
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ----- PANTALLA: MIS PEDIDOS ----- */
+.tracking-hero {
+  display: flex; align-items: center; gap: 14px;
+  background: #E1F5EE; border: 0.5px solid #9FE1CB;
+  border-radius: var(--border-radius-lg);
+  padding: 14px; margin-bottom: 16px;
+}
+.tracking-hero-anim {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: #fff; overflow: hidden; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.tracking-hero-anim video { width: 100%; height: 100%; object-fit: cover; }
+.tracking-hero-anim i { font-size: 28px; color: #1D9E75; }
+.tracking-hero-info { flex: 1; min-width: 0; }
+.tracking-hero-label { font-size: 13px; font-weight: 600; color: #085041; margin-bottom: 3px; }
+.tracking-hero-sub { font-size: 12px; color: #0F6E56; margin-bottom: 3px; }
+.tracking-hero-total { font-size: 14px; font-weight: 500; color: #085041; }
+.tracking-hero-more {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: #fff; border: 0.5px solid #9FE1CB; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #0F6E56; transition: background 0.2s;
+}
+.tracking-hero-more:hover { background: #C7EFE2; }
+
 .order-card {
   background: var(--color-background-primary);
   border: 0.5px solid var(--color-border-tertiary);
   border-radius: var(--border-radius-lg);
   padding: 16px; margin-bottom: 12px;
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+.order-card-highlight {
+  border-color: #1D9E75;
+  box-shadow: 0 0 0 3px rgba(29, 158, 117, 0.25);
 }
 .order-card-header {
   display: flex; justify-content: space-between; align-items: flex-start;

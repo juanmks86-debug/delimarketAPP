@@ -23,6 +23,9 @@ let detailQty = 1;
 let allProducts = [];
 let activeCategory = 'todos';
 let activeSortOrder = 'default'; // 'default' | 'price-asc' | 'price-desc' | 'newest'
+// Marca de tiempo en que cada pedido activo empezó a mostrar la animación
+// de delivery en "Mis pedidos", para cortarla a los 30s si no llegó antes.
+const orderTrackingStart = {};
 
 function saveCart() { localStorage.setItem('dm_cart', JSON.stringify(cart)); }
 function saveFavorites() { localStorage.setItem('dm_favorites', JSON.stringify(favorites)); }
@@ -319,6 +322,12 @@ function showScreen(name) {
   document.getElementById('screen-' + name).classList.add('active');
   window.scrollTo(0, 0);
   if (name === 'cart') renderCart();
+
+  // Las decoraciones del tema activo (soles, copos, confeti, etc.) solo
+  // se muestran en el home: en pantallas de contenido serio como el
+  // carrito, checkout o "Mis pedidos" quedaban flotando encima de
+  // precios y estados, dificultando la lectura.
+  if (typeof setParticlesVisible === 'function') setParticlesVisible(name === 'home');
 
   // "Mis pedidos": refrescar al entrar y cada pocos segundos mientras
   // está abierta, para reflejar cambios de estado que haga el vendedor
@@ -762,7 +771,39 @@ async function renderMyOrders() {
     return;
   }
 
-  body.innerHTML = allOrders.map(order => {
+  // Limpiar timestamps de pedidos ya entregados (evita que se acumulen)
+  allOrders.forEach(o => { if (o.status === 'done') delete orderTrackingStart[o.id]; });
+
+  // ----- Hero de seguimiento: el pedido activo más reciente (si hay uno) -----
+  const activeOrder = allOrders.find(o => o.status !== 'done');
+  let trackingHeroHTML = '';
+  if (activeOrder) {
+    if (!orderTrackingStart[activeOrder.id]) orderTrackingStart[activeOrder.id] = Date.now();
+    const elapsed = Date.now() - orderTrackingStart[activeOrder.id];
+    const stillAnimating = elapsed < 30000; // tope de 30s si no llegó antes
+    const itemCount = activeOrder.items.reduce((sum, i) => sum + i.qty, 0);
+
+    trackingHeroHTML = `
+      <div class="tracking-hero" data-order-id="${activeOrder.id}">
+        <div class="tracking-hero-anim">
+          ${stillAnimating ? `
+            <video autoplay loop muted playsinline
+              src="https://assets-v2.lottiefiles.com/a/67204f0e-1151-11ee-852a-1bdb862a1efb/2rApD9hTB9.mp4">
+            </video>
+          ` : `<i class="ti ti-truck-delivery" aria-hidden="true"></i>`}
+        </div>
+        <div class="tracking-hero-info">
+          <div class="tracking-hero-label">${activeOrder.status === 'delivery' ? 'Tu pedido está en camino 🛵' : 'Preparando tu pedido'}</div>
+          <div class="tracking-hero-sub">${activeOrder.id} · ${itemCount} producto${itemCount === 1 ? '' : 's'}</div>
+          <div class="tracking-hero-total">$${activeOrder.total.toLocaleString('es-AR')}</div>
+        </div>
+        <button class="tracking-hero-more" onclick="scrollToOrder('${activeOrder.id}')" aria-label="Ver más detalle del pedido">
+          <i class="ti ti-chevron-right"></i>
+        </button>
+      </div>`;
+  }
+
+  body.innerHTML = trackingHeroHTML + allOrders.map(order => {
     const steps = [
       { key: 'pending',  label: 'Confirmado', icon: 'ti-check' },
       { key: 'delivery', label: 'En camino',  icon: 'ti-truck-delivery' },
@@ -781,7 +822,7 @@ async function renderMyOrders() {
     `).join('');
 
     return `
-      <div class="order-card">
+      <div class="order-card" data-order-id="${order.id}">
         <div class="order-card-header">
           <div>
             <div class="order-card-id">${order.id}</div>
@@ -817,6 +858,16 @@ async function renderMyOrders() {
         ) : ''}
       </div>`;
   }).join('');
+}
+
+// Desplaza y resalta brevemente la tarjeta de un pedido cuando se toca
+// el ícono "ver más" del mini resumen de seguimiento.
+function scrollToOrder(orderId) {
+  const card = document.querySelector(`.order-card[data-order-id="${orderId}"]`);
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('order-card-highlight');
+  setTimeout(() => card.classList.remove('order-card-highlight'), 1600);
 }
 
 // =============================================
