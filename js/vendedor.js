@@ -270,6 +270,23 @@ function previewConsumerAvatar(input) {
   }
 }
 
+// =============================================
+//   OVERLAY DE VERIFICACIÓN (animación mientras se
+//   confirma que el registro no es un bot: por ahora
+//   cubre la espera de la creación de cuenta; a futuro
+//   puede extenderse a verificación de email/celular/rostro)
+// =============================================
+
+function showVerifyOverlay() {
+  const overlay = document.getElementById('verify-overlay');
+  if (overlay) overlay.classList.add('show');
+}
+
+function hideVerifyOverlay() {
+  const overlay = document.getElementById('verify-overlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
 async function registerConsumer() {
   const firstname   = document.getElementById('c-firstname').value.trim();
   const lastname    = document.getElementById('c-lastname').value.trim();
@@ -296,6 +313,7 @@ async function registerConsumer() {
   }
 
   // Verificar si ya existe / crear la cuenta en Supabase
+  showVerifyOverlay();
   const { data, error } = await supabaseClient.rpc('registrar_cliente', {
     p_nombre: firstname,
     p_apellido: lastname,
@@ -308,10 +326,12 @@ async function registerConsumer() {
   });
 
   if (error) {
+    hideVerifyOverlay();
     showAuthError('c-register-error', 'c-register-error-msg', 'Error de conexión. Intentá de nuevo.');
     return;
   }
   if (!data.success) {
+    hideVerifyOverlay();
     showAuthError('c-register-error', 'c-register-error-msg', 'Ya existe una cuenta con ese correo o celular. ¿Querés iniciar sesión?');
     return;
   }
@@ -319,6 +339,7 @@ async function registerConsumer() {
   // perfil.id es el uuid real en Supabase; identifier queda como el email/celular
   consumerProfile = { ...data.perfil, identifier: data.perfil.email };
   localStorage.setItem('dm_consumer_profile', JSON.stringify(consumerProfile));
+  hideVerifyOverlay();
   showWelcomeToast('¡Cuenta creada! Bienvenido/a, ' + firstname + ' 🎉');
   setTimeout(() => window.location.href = 'index.html', 900);
 }
