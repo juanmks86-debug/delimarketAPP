@@ -459,7 +459,11 @@
       <!-- TAB: PERFIL -->
       <div id="tab-profile" style="display:none">
         <div class="profile-header">
-          <div class="profile-avatar"><i class="ti ti-store"></i></div>
+          <div class="profile-avatar" id="profile-avatar" onclick="document.getElementById('profile-avatar-input').click()">
+            <i class="ti ti-store" id="profile-avatar-icon"></i>
+            <div class="profile-avatar-edit"><i class="ti ti-camera"></i></div>
+          </div>
+          <input type="file" id="profile-avatar-input" accept="image/png, image/jpeg, image/webp" style="display:none" onchange="uploadProfileAvatarFromInput(this)">
           <div class="profile-biz-name" id="profile-biz-name">—</div>
           <div class="profile-bio" id="profile-bio">Sin descripción aún.</div>
         </div>

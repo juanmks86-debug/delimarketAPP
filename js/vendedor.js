@@ -368,6 +368,59 @@ async function uploadVendorAvatar(file, vendorId) {
   return data.publicUrl;
 }
 
+/**
+ * Pinta la foto de perfil (logo_url) en el círculo del tab Perfil,
+ * o deja el ícono por defecto si el vendedor todavía no subió ninguna.
+ */
+function renderProfileAvatar() {
+  const circle = document.getElementById('profile-avatar');
+  const icon = document.getElementById('profile-avatar-icon');
+  if (!circle) return;
+  if (vendorProfile && vendorProfile.logo_url) {
+    circle.style.backgroundImage = `url(${vendorProfile.logo_url})`;
+    circle.style.backgroundSize = 'cover';
+    circle.style.backgroundPosition = 'center';
+    if (icon) icon.style.display = 'none';
+  } else {
+    circle.style.backgroundImage = '';
+    if (icon) icon.style.display = '';
+  }
+}
+
+/**
+ * Se dispara al elegir una foto nueva desde el tab Perfil (vendedor ya
+ * logueado y aprobado). Sube la imagen a "vendedores-logos", actualiza
+ * logo_url en la tabla vendedores y refresca el círculo + la sesión guardada.
+ */
+async function uploadProfileAvatarFromInput(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  if (file.size > 2 * 1024 * 1024) { alert('La imagen no puede superar 2 MB.'); return; }
+
+  const circle = document.getElementById('profile-avatar');
+  if (circle) circle.style.opacity = '0.5';
+
+  try {
+    const logoUrl = await uploadVendorAvatar(file, vendorProfile.id);
+    const { error } = await supabaseClient
+      .from('vendedores')
+      .update({ logo_url: logoUrl })
+      .eq('id', vendorProfile.id);
+    if (error) throw error;
+
+    vendorProfile.logo_url = logoUrl;
+    localStorage.setItem('dm_vendor_profile', JSON.stringify(vendorProfile));
+    renderProfileAvatar();
+    showWelcomeToast('¡Foto de perfil actualizada! 📸');
+  } catch (e) {
+    console.error('No se pudo actualizar la foto de perfil:', e);
+    alert('No se pudo subir la foto. Probá de nuevo.');
+  } finally {
+    if (circle) circle.style.opacity = '1';
+    input.value = '';
+  }
+}
+
 async function registerVendor() {
   const name       = document.getElementById('biz-name').value.trim();
   const dni        = document.getElementById('biz-dni').value.trim();
@@ -512,6 +565,7 @@ async function loadVendorPanel() {
   document.getElementById('profile-category').textContent = CATEGORY_LABELS[vendorProfile.category] || vendorProfile.category;
   document.getElementById('profile-location').textContent = vendorProfile.location;
   document.getElementById('profile-address').textContent = vendorProfile.address || '—';
+  renderProfileAvatar();
 
   await loadMyProducts();
   document.getElementById('stat-products').textContent = myProducts.length;
