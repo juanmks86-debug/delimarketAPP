@@ -591,7 +591,7 @@ async function loadVendorPanel() {
   await loadMyProducts();
   document.getElementById('stat-products').textContent = myProducts.length;
 
-  const ratingStats = getVendorRatingStats(vendorProfile.name);
+  const ratingStats = await getVendorRatingStats(vendorProfile.name);
   document.getElementById('stat-rating-value').textContent =
     ratingStats.avg !== null ? ratingStats.avg.toFixed(1) + ' ★' : '—';
   document.getElementById('stat-rating-sub').textContent =

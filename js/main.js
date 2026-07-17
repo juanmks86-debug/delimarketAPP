@@ -931,21 +931,18 @@ async function submitReview() {
   const comment = document.getElementById('review-comment').value.trim();
   const vendor  = order.items[0] ? order.items[0].vendor : 'Vendedor';
 
-  // El listado de reseñas públicas todavía vive en localStorage
-  // (se migra en un próximo paso); lo que sí queda en Supabase es
-  // la marca de "ya calificado" en el pedido.
-  const review = {
-    orderId:  order.id,
-    vendor,
-    stars:    reviewStarsSelected,
-    comment,
-    consumer: order.consumidor_nombre,
-    date:     new Date().toISOString(),
-  };
-
-  const allReviews = JSON.parse(localStorage.getItem('dm_reviews') || '[]');
-  allReviews.unshift(review);
-  localStorage.setItem('dm_reviews', JSON.stringify(allReviews));
+  const { error: reviewError } = await supabaseClient.from('resenas').insert({
+    pedido_id: order.id,
+    vendedor: vendor,
+    estrellas: reviewStarsSelected,
+    comentario: comment,
+    cliente_nombre: order.consumidor_nombre,
+  });
+  if (reviewError) {
+    console.error('No se pudo guardar la reseña:', reviewError);
+    showToast('No se pudo guardar la reseña. Probá de nuevo.', 'ti-alert-triangle');
+    return;
+  }
 
   const { error: updateError } = await supabaseClient
     .from('pedidos')

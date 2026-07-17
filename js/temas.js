@@ -24,21 +24,27 @@ function escapeHtml(str) {
 
 // =============================================
 //   RESEÑAS / CALIFICACIÓN
-//   Se guardan en localStorage (dm_reviews) como
-//   { orderId, vendor, stars, comment, consumer, date }.
-//   Ojo: al no haber backend, cada dispositivo tiene su
-//   propia lista — un vendedor solo ve en su celular las
-//   reseñas que se hayan guardado en ESE mismo navegador.
+//   Viven en la tabla "resenas" de Supabase: son públicas
+//   (se ven desde cualquier dispositivo), a diferencia de
+//   como funcionaban antes en localStorage.
 // =============================================
-function getVendorReviews(vendorName) {
-  const all = JSON.parse(localStorage.getItem('dm_reviews') || '[]');
-  return all.filter(r => r.vendor === vendorName);
+async function getVendorReviews(vendorName) {
+  const { data, error } = await supabaseClient
+    .from('resenas')
+    .select('estrellas, comentario, cliente_nombre, created_at')
+    .eq('vendedor', vendorName)
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('No se pudieron cargar las reseñas del vendedor:', error);
+    return [];
+  }
+  return data || [];
 }
 
-function getVendorRatingStats(vendorName) {
-  const reviews = getVendorReviews(vendorName);
+async function getVendorRatingStats(vendorName) {
+  const reviews = await getVendorReviews(vendorName);
   if (reviews.length === 0) return { avg: null, count: 0 };
-  const avg = reviews.reduce((sum, r) => sum + r.stars, 0) / reviews.length;
+  const avg = reviews.reduce((sum, r) => sum + r.estrellas, 0) / reviews.length;
   return { avg: Math.round(avg * 10) / 10, count: reviews.length };
 }
 
@@ -285,6 +291,18 @@ function stopParticles() {
   clearInterval(particleInterval);
   const c = document.getElementById(PARTICLE_CONTAINER_ID);
   if (c) c.remove();
+}
+
+/**
+ * Oculta o vuelve a mostrar las partículas decorativas sin reiniciar el
+ * tema (evita volver a pedir el tema activo a Supabase). Se usa para que
+ * las decoraciones (soles, copos, confeti, etc.) solo se vean en el home
+ * y no queden flotando sobre pantallas de contenido serio (pedidos,
+ * carrito, checkout), donde estorban la lectura de precios y estados.
+ */
+function setParticlesVisible(visible) {
+  const c = document.getElementById(PARTICLE_CONTAINER_ID);
+  if (c) c.style.display = visible ? '' : 'none';
 }
 
 // Inyectar keyframes de partículas
