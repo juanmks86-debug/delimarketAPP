@@ -377,6 +377,7 @@ function previewAvatar(input) {
  * de proveedores del index, así el vendedor solo sube una foto.
  */
 async function uploadVendorAvatar(file, vendorId) {
+  file = await compressImage(file, 640, 0.85);
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${vendorId}/${Date.now()}.${ext}`;
   const { error: uploadError } = await supabaseClient
@@ -685,6 +686,7 @@ function onProductImageSelected(input) {
  * y devuelve la URL pública para guardar en la columna imagen_url.
  */
 async function uploadProductImage(file, vendorId) {
+  file = await compressImage(file, 1000, 0.82);
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
   const path = `${vendorId}/${Date.now()}.${ext}`;
   const { error: uploadError } = await supabaseClient
@@ -786,7 +788,8 @@ function renderMyProducts() {
     list.innerHTML = `
       <div style="padding:32px 0;text-align:center;color:var(--color-text-tertiary);font-size:13px;">
         <i class="ti ti-package" style="font-size:36px;display:block;margin-bottom:10px;"></i>
-        Aún no publicaste productos.
+        <p style="margin-bottom:14px">Aún no publicaste productos.</p>
+        <button class="nav-btn primary" onclick="openProductModal()">Publicar el primero</button>
       </div>`;
     return;
   }
@@ -856,7 +859,9 @@ async function renderVendorOrders() {
     console.error('No se pudieron cargar tus pedidos desde Supabase:', error);
     list.innerHTML = `
       <div style="padding:40px 0;text-align:center;color:var(--color-text-tertiary);font-size:13px;">
-        No se pudieron cargar los pedidos. Intentá de nuevo.
+        <i class="ti ti-wifi-off" style="font-size:36px;display:block;margin-bottom:10px;"></i>
+        <p style="margin-bottom:14px">No se pudieron cargar los pedidos.</p>
+        <button class="nav-btn primary" onclick="renderVendorOrders()">Reintentar</button>
       </div>`;
     return;
   }

@@ -298,10 +298,26 @@ function renderProducts(products) {
   if (!track) return;
 
   if (products.length === 0) {
+    const q = document.querySelector('.search-bar input')?.value.trim() || '';
+    let msg = 'Todavía no hay productos publicados.';
+    let showReset = false;
+
+    if (showOnlyFavorites) {
+      msg = 'Todavía no marcaste ningún producto como favorito. Tocá el ❤ en una tarjeta para guardarlo acá.';
+      showReset = true;
+    } else if (q) {
+      msg = `No encontramos resultados para "${escapeHtml(q)}". Probá con otra palabra.`;
+      showReset = true;
+    } else if (activeCategoryIcon) {
+      msg = 'No hay productos en esta categoría por ahora.';
+      showReset = true;
+    }
+
     track.innerHTML = `
-      <div style="padding:32px;text-align:center;color:var(--color-text-tertiary);font-size:13px;min-width:200px">
-        <i class="ti ti-package" style="font-size:36px;display:block;margin-bottom:10px;"></i>
-        No hay productos en esta categoría.
+      <div style="padding:32px 20px;text-align:center;color:var(--color-text-tertiary);font-size:13px;min-width:220px">
+        <i class="ti ti-package-off" style="font-size:36px;display:block;margin-bottom:10px;"></i>
+        <p style="margin-bottom:${showReset ? '12px' : '0'}">${msg}</p>
+        ${showReset ? `<button onclick="resetProductFilters()" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:999px;padding:6px 16px;font-size:12px;color:var(--color-text-secondary);cursor:pointer;font-family:var(--font-sans)">Quitar filtros</button>` : ''}
       </div>`;
   } else {
     track.innerHTML = products.map(buildCard).join('');
@@ -309,6 +325,21 @@ function renderProducts(products) {
 
   // Reiniciar el carrusel para recalcular dimensiones
   if (typeof calcDimensions === 'function') calcDimensions();
+}
+
+// Vuelve la grilla de productos a su estado sin filtros (categoría,
+// búsqueda y favoritos), usado desde el estado vacío contextual.
+function resetProductFilters() {
+  activeCategoryIcon = null;
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+  const firstChip = document.querySelector('.cat-chip');
+  if (firstChip) firstChip.classList.add('active');
+  const searchInput = document.querySelector('.search-bar input');
+  if (searchInput) searchInput.value = '';
+  showOnlyFavorites = false;
+  const favBtn = document.getElementById('fav-filter-btn');
+  if (favBtn) { favBtn.style.background = ''; favBtn.style.borderColor = ''; favBtn.style.color = ''; }
+  applyFilters();
 }
 
 // =============================================
@@ -387,6 +418,7 @@ function updateDetailTotal() {
 
 function addDetailToCart() {
   if (!currentProduct) return;
+  if (!requireConsumerLogin(currentProduct)) return;
   for (let i = 0; i < detailQty; i++) addToCartDirect(currentProduct);
   showScreen('cart');
 }
@@ -395,7 +427,45 @@ function addDetailToCart() {
 //   CARRITO
 // =============================================
 
+// Antes de agregar al carrito (o de confirmar el pedido) hace falta estar
+// logueado como cliente. Si no hay sesión, guarda el producto pendiente
+// (para agregarlo solo después de loguearse) y muestra el aviso.
+function requireConsumerLogin(pendingProduct) {
+  const profile = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
+  if (profile) return true;
+  if (pendingProduct) sessionStorage.setItem('dm_pending_cart_add', JSON.stringify(pendingProduct));
+  document.getElementById('login-required-modal').classList.add('open');
+  return false;
+}
+
+function closeLoginRequiredModal() {
+  document.getElementById('login-required-modal').classList.remove('open');
+}
+
+function closeLoginRequiredOutside(e) {
+  if (e.target === document.getElementById('login-required-modal')) closeLoginRequiredModal();
+}
+
+function goToConsumerLogin() {
+  sessionStorage.setItem('dm_pending_role', 'consumer');
+  window.location.href = 'vendedor.html';
+}
+
+// Si el usuario quiso agregar un producto sin estar logueado, se guarda
+// acá; en cuanto vuelve ya logueado, se agrega solo y se avisa con un toast.
+function resolvePendingCartAdd() {
+  const pending = sessionStorage.getItem('dm_pending_cart_add');
+  if (!pending) return;
+  sessionStorage.removeItem('dm_pending_cart_add');
+  const profile = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
+  if (!profile) return;
+  const product = JSON.parse(pending);
+  addToCartDirect(product);
+  showToast(`${product.name} se agregó al carrito`, 'ti-shopping-cart');
+}
+
 function addToCartDirect(product) {
+  if (!requireConsumerLogin(product)) return;
   const existing = cart.find(i => i.name === product.name);
   if (existing) { existing.qty++; }
   else { cart.push({ ...product, qty: 1 }); }
@@ -567,6 +637,7 @@ injectSortBar();
 initIndexBanners();
 initIndexTema();
 initDarkMode();
+resolvePendingCartAdd();
 
 // =============================================
 //   SISTEMA DE PEDIDOS
@@ -589,6 +660,7 @@ function showToast(msg, icon = 'ti-check') {
 // ----- ABRIR MODAL CHECKOUT -----
 function openCheckout() {
   if (cart.length === 0) return;
+  if (!requireConsumerLogin()) return;
 
   // Mostrar items del carrito en el modal
   const itemsEl = document.getElementById('checkout-summary-items');
@@ -730,7 +802,8 @@ async function renderMyOrders() {
     body.innerHTML = `
       <div style="padding:48px 16px;text-align:center;color:var(--color-text-tertiary)">
         <i class="ti ti-login" style="font-size:48px;display:block;margin-bottom:12px"></i>
-        <p style="font-size:14px">Iniciá sesión para ver tus pedidos.</p>
+        <p style="font-size:14px;margin-bottom:16px">Iniciá sesión para ver tus pedidos.</p>
+        <button class="nav-btn primary" onclick="goToConsumerLogin()">Iniciar sesión</button>
       </div>`;
     return;
   }
@@ -747,7 +820,9 @@ async function renderMyOrders() {
     console.error('No se pudieron cargar tus pedidos desde Supabase:', error);
     body.innerHTML = `
       <div style="padding:48px 16px;text-align:center;color:var(--color-text-tertiary)">
-        <p style="font-size:14px">No se pudieron cargar tus pedidos. Intentá de nuevo.</p>
+        <i class="ti ti-wifi-off" style="font-size:40px;display:block;margin-bottom:12px"></i>
+        <p style="font-size:14px;margin-bottom:16px">No se pudieron cargar tus pedidos. Revisá tu conexión.</p>
+        <button class="nav-btn primary" onclick="renderMyOrders()">Reintentar</button>
       </div>`;
     return;
   }
@@ -766,7 +841,8 @@ async function renderMyOrders() {
     body.innerHTML = `
       <div style="padding:48px 16px;text-align:center;color:var(--color-text-tertiary)">
         <i class="ti ti-receipt" style="font-size:48px;display:block;margin-bottom:12px"></i>
-        <p style="font-size:14px">Todavía no realizaste pedidos.</p>
+        <p style="font-size:14px;margin-bottom:16px">Todavía no realizaste pedidos.</p>
+        <button class="nav-btn primary" onclick="showScreen('home')">Ver productos</button>
       </div>`;
     return;
   }

@@ -88,6 +88,7 @@ async function onBannerFileSelected(input) {
   if (uploadBtn) { uploadBtn.disabled = true; }
 
   try {
+    file = await compressImage(file, 1600, 0.85);
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `${Date.now()}.${ext}`;
 

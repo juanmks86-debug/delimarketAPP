@@ -6,6 +6,12 @@
   <title>DeliMarket — Comida rápida con delivery</title>
   <meta name="description" content="Comprá pizzas, empanadas, hamburguesas y más de tus locales de comida rápida favoritos, con delivery directo a tu puerta. Sumate como consumidor o vendedor en DeliMarket.">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1D9E75">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="DeliMarket">
   <meta property="og:type" content="website">
   <meta property="og:title" content="DeliMarket — Comida rápida con delivery">
   <meta property="og:description" content="Comprá pizzas, empanadas, hamburguesas y más, con delivery directo a tu puerta.">
@@ -212,6 +218,7 @@
         <i class="ti ti-shopping-cart" aria-hidden="true"></i>
         <p>Tu carrito está vacío</p>
         <small>Agregá productos desde el inicio</small>
+        <button class="nav-btn primary" style="margin-top:16px" onclick="showScreen('home')">Ir al inicio</button>
       </div>
       <div id="cart-items"></div>
     </div>
@@ -314,12 +321,36 @@
   <!-- TOAST -->
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <!-- ===================== MODAL: LOGIN REQUERIDO ===================== -->
+  <div class="modal-overlay" id="login-required-modal" onclick="closeLoginRequiredOutside(event)">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Iniciá sesión para continuar</div>
+      <p style="font-size:14px;color:var(--color-text-secondary);margin-bottom:20px;line-height:1.5">
+        Para agregar productos al carrito y confirmar tu pedido necesitás una cuenta de cliente. Es gratis y te toma un minuto.
+      </p>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeLoginRequiredModal()">Ahora no</button>
+        <button class="btn-primary-full" onclick="goToConsumerLogin()">Iniciar sesión</button>
+      </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/temas.js"></script>
   <script src="js/banners.js"></script>
   <script src="js/carousel.js"></script>
   <script src="js/main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.warn('No se pudo registrar el service worker:', err);
+        });
+      });
+    }
+  </script>
 
 </body>
 </html>
