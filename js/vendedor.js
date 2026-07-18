@@ -627,6 +627,8 @@ function openProductModal(editIdx = null) {
   editingProductIdx = editIdx;
   const modal = document.getElementById('product-modal');
   const title = modal.querySelector('.modal-title');
+  const preview = document.getElementById('p-img-preview');
+  const imgIcon = document.getElementById('p-img-icon');
 
   if (editIdx !== null && myProducts[editIdx]) {
     const p = myProducts[editIdx];
@@ -636,9 +638,8 @@ function openProductModal(editIdx = null) {
     document.getElementById('p-price').value   = p.price;
     document.getElementById('p-time').value    = p.time !== '—' ? p.time : '';
     document.getElementById('p-desc').value    = p.desc || '';
+    document.getElementById('p-destacado').checked = !!p.destacado;
     window._pendingProductImageFile = null;
-    const preview = document.getElementById('p-img-preview');
-    const imgIcon = document.getElementById('p-img-icon');
     if (p.image && preview) {
       preview.src = p.image; preview.style.display = 'block';
       if (imgIcon) imgIcon.style.display = 'none';
@@ -653,6 +654,9 @@ function openProductModal(editIdx = null) {
     ['p-name', 'p-price', 'p-time', 'p-desc'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('p-category').value = '';
     document.getElementById('p-franja').value = '';
+    document.getElementById('p-destacado').checked = false;
+    window._pendingProductImageFile = null;
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
     if (imgIcon) imgIcon.style.display = 'flex';
     if (title) title.textContent = 'Agregar producto';
     const saveBtn = document.getElementById('p-save-btn');
@@ -714,6 +718,7 @@ async function saveProduct() {
   const price = parseInt(document.getElementById('p-price').value);
   const time  = document.getElementById('p-time').value.trim() || '—';
   const desc  = document.getElementById('p-desc').value.trim();
+  const destacado = document.getElementById('p-destacado').checked;
 
   if (!name || !icon || !franja || !price) {
     alert('Completá nombre, categoría, franja horaria y precio');
@@ -740,6 +745,7 @@ async function saveProduct() {
       tiempo_preparacion: time,
       descripcion: desc,
       imagen_url: imageUrl,
+      destacado: destacado,
     };
 
     if (editingProductIdx !== null) {
@@ -749,7 +755,7 @@ async function saveProduct() {
 
       myProducts[editingProductIdx] = {
         ...myProducts[editingProductIdx],
-        name, icon, franja, price, time, desc, image: imageUrl,
+        name, icon, franja, price, time, desc, image: imageUrl, destacado,
         categoryLabel: CATEGORY_ICONS[icon] || 'Otros',
       };
     } else {
@@ -761,7 +767,7 @@ async function saveProduct() {
       if (error) throw error;
 
       myProducts.push({
-        id: data.id, name, icon, franja, price, time, desc,
+        id: data.id, name, icon, franja, price, time, desc, destacado,
         vendor: vendorProfile.name,
         vendorIdentifier: vendorProfile.id,
         categoryLabel: CATEGORY_ICONS[icon] || 'Otros',

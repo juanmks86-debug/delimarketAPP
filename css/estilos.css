@@ -169,6 +169,8 @@
   scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
 }
 .providers-row::-webkit-scrollbar { display: none; }
+.product-scroll-row { gap: 12px; }
+.product-scroll-row .product-card { scroll-snap-align: start; }
 .provider-card {
   flex: 0 0 auto; width: 72px; display: flex; flex-direction: column;
   align-items: center; gap: 6px; cursor: pointer; scroll-snap-align: start;

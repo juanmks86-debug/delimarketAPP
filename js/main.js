@@ -43,6 +43,7 @@ function toggleFavorite(e, product) {
   }
   saveFavorites();
   applyFilters();
+  renderFavoritesRow();
 }
 
 // =============================================
@@ -103,6 +104,7 @@ function logoutConsumer() {
   sessionStorage.removeItem('dm_pending_role');
   sessionStorage.removeItem('dm_pending_action');
   initSession();
+  renderFavoritesRow();
   showToast('Sesión cerrada', 'ti-logout');
 }
 
@@ -127,7 +129,7 @@ async function loadProducts() {
   try {
     const { data, error } = await supabaseClient
       .from('productos')
-      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, franja, vendedor_id, vendedores(nombre_negocio)')
+      .select('id, nombre, descripcion, precio, tiempo_preparacion, imagen_url, categoria, franja, destacado, vendedor_id, vendedores(nombre_negocio)')
       .eq('activo', true)
       .order('created_at', { ascending: false });
 
@@ -146,6 +148,7 @@ async function loadProducts() {
       image: p.imagen_url || null,
       icon: p.categoria || 'ti-package',
       franja: p.franja || null,
+      destacado: !!p.destacado,
     }));
   } catch (e) {
     console.error('No se pudieron cargar los productos desde Supabase:', e);
@@ -157,6 +160,72 @@ async function loadProducts() {
     : [...DEMO_PRODUCTS];
 
   renderProducts(allProducts);
+  renderOffersRow();
+  renderFavoritesRow();
+  renderTopRatedRow();
+}
+
+/**
+ * Fila "Ofertas / destacados": productos que el vendedor marcó a mano
+ * como destacado en su panel. La sección entera se oculta si no hay
+ * ninguno (para no mostrar un carrusel vacío).
+ */
+function renderOffersRow() {
+  const section = document.getElementById('offers-section');
+  const row = document.getElementById('offers-row');
+  if (!section || !row) return;
+  const offers = allProducts.filter(p => p.destacado);
+  if (offers.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  row.innerHTML = offers.map(buildCard).join('');
+}
+
+/**
+ * Fila "Tus favoritos": solo se muestra si el cliente está logueado
+ * y ya marcó al menos un producto con el corazón.
+ */
+function renderFavoritesRow() {
+  const section = document.getElementById('favorites-section');
+  const row = document.getElementById('favorites-row');
+  if (!section || !row) return;
+  const profile = JSON.parse(localStorage.getItem('dm_consumer_profile') || 'null');
+  const favProducts = profile ? allProducts.filter(p => isFavorite(p.id)) : [];
+  if (favProducts.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  row.innerHTML = favProducts.map(buildCard).join('');
+}
+
+/**
+ * Fila "Mejor calificados": productos de vendedores con buen promedio
+ * de estrellas en la tabla resenas (mínimo 4 sobre 5, con al menos una
+ * reseña). Se oculta si todavía no hay reseñas o ninguna califica.
+ */
+async function renderTopRatedRow() {
+  const section = document.getElementById('top-rated-section');
+  const row = document.getElementById('top-rated-row');
+  if (!section || !row) return;
+
+  const { data, error } = await supabaseClient.from('resenas').select('vendedor, estrellas');
+  if (error || !data || data.length === 0) { section.style.display = 'none'; return; }
+
+  const statsByVendor = {};
+  data.forEach(r => {
+    if (!statsByVendor[r.vendedor]) statsByVendor[r.vendedor] = { sum: 0, count: 0 };
+    statsByVendor[r.vendedor].sum += r.estrellas;
+    statsByVendor[r.vendedor].count++;
+  });
+
+  const topVendors = Object.entries(statsByVendor)
+    .map(([vendor, s]) => ({ vendor, avg: s.sum / s.count }))
+    .filter(v => v.avg >= 4)
+    .sort((a, b) => b.avg - a.avg)
+    .map(v => v.vendor);
+
+  const topProducts = allProducts.filter(p => topVendors.includes(p.vendor));
+  if (topProducts.length === 0) { section.style.display = 'none'; return; }
+
+  section.style.display = '';
+  row.innerHTML = topProducts.map(buildCard).join('');
 }
 
 /**
