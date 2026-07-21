@@ -1,0 +1,7 @@
+{
+  "name": "delimarket-app",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2"
+  }
+}
